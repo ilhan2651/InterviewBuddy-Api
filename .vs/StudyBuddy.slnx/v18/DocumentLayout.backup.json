@@ -1,0 +1,69 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\ilhan\\source\\repos\\StudyBuddy\\StudyBuddy\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{2521B82F-6237-4C63-91FB-5F1D9AC1CEA4}|Buddy.Infrastructure\\Buddy.Infrastructure.csproj|c:\\users\\ilhan\\source\\repos\\studybuddy\\studybuddy\\buddy.infrastructure\\services\\redis\\rediscacheservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{2521B82F-6237-4C63-91FB-5F1D9AC1CEA4}|Buddy.Infrastructure\\Buddy.Infrastructure.csproj|solutionrelative:buddy.infrastructure\\services\\redis\\rediscacheservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 218,
+          "SelectedChildIndex": 2,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{aa2115a1-9712-457b-9047-dbb71ca2cdd2}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "RedisCacheService.cs",
+              "DocumentMoniker": "C:\\Users\\ilhan\\source\\repos\\StudyBuddy\\StudyBuddy\\Buddy.Infrastructure\\Services\\Redis\\RedisCacheService.cs",
+              "RelativeDocumentMoniker": "Buddy.Infrastructure\\Services\\Redis\\RedisCacheService.cs",
+              "ToolTip": "C:\\Users\\ilhan\\source\\repos\\StudyBuddy\\StudyBuddy\\Buddy.Infrastructure\\Services\\Redis\\RedisCacheService.cs*",
+              "RelativeToolTip": "Buddy.Infrastructure\\Services\\Redis\\RedisCacheService.cs*",
+              "ViewState": "AgIAAAIAAAAAAAAAAAAIwC0AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-02-16T19:45:26.925Z",
+              "EditorCaption": ""
+            }
+          ]
+        },
+        {
+          "DockedWidth": 191,
+          "SelectedChildIndex": -1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:1:0:{d212f56b-c48a-434c-a121-1c5d80b59b9f}"
+            }
+          ]
+        },
+        {
+          "DockedWidth": 1524,
+          "SelectedChildIndex": -1,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{0ad07096-bba9-4900-a651-0598d26f6d24}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

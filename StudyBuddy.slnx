@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Buddy.Api/Buddy.Api.csproj" />
+  <Project Path="Buddy.Application/Buddy.Application.csproj" />
+  <Project Path="Buddy.Domain/Buddy.Domain.csproj" />
+  <Project Path="Buddy.Infrastructure/Buddy.Infrastructure.csproj" />
+  <Project Path="Buddy.Persistence/Buddy.Persistence.csproj" />
+</Solution>
