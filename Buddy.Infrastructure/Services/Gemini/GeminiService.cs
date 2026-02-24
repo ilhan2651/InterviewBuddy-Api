@@ -2,6 +2,7 @@ using Buddy.Application.Dtos.Quiz;
 using Buddy.Application.Services;
 using Buddy.Domain.Entities;
 using Buddy.Domain.Enums;
+using Buddy.Application.Dtos.Interview;
 using Mscc.GenerativeAI;
 using Microsoft.Extensions.Configuration;
 using System;
@@ -11,6 +12,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Mscc.GenerativeAI.Types;
 
 namespace Buddy.Infrastructure.Services.Gemini
 {
@@ -46,7 +48,7 @@ namespace Buddy.Infrastructure.Services.Gemini
             return response?.Text ?? string.Empty;
         }
 
-        public async Task<string> GenerateChatResponseAsync(string userMessage, List<Message> history)
+        public async Task<string> GenerateChatResponseAsync(string userMessage, List<Buddy.Domain.Entities.Message> history)
         {
             var model = _googleAI.GenerativeModel(model: _modelName);
 
@@ -155,43 +157,84 @@ Yanıtını SADECE aşağıdaki JSON formatında ver:
             }
         }
 
-        public async Task<List<string>> GenerateInterviewQuestionsAsync(string jobTitle, InterviewLevel level, InterviewQuestionType type, int count)
+        public async Task<List<InterviewQuestionResult>> GenerateInterviewQuestionsAsync(string profession, string jobTitle, InterviewLevel level, DifficultyLevel difficulty, InterviewQuestionType type, int count, string language, List<string>? previouslyAskedQuestions = null, CancellationToken cancellationToken = default)
         {
             var model = _googleAI.GenerativeModel(model: _modelName);
             var prompt = "";
 
+            string exclusionText = "";
+            if (previouslyAskedQuestions != null && previouslyAskedQuestions.Any())
+            {
+                exclusionText = $"\n\nÖNEMLİ: Daha önceki mülakatlarda adaya şu sorular soruldu:\n{string.Join("\n- ", previouslyAskedQuestions)}\n\nLütfen bu soruları ve varyasyonlarını EKRAN SÜRESİNDE TEKRAR ETME. Tamamen yeni sorular üret.";
+            }
+
             if (type == InterviewQuestionType.Behavioral)
             {
-                prompt = $@"Pozisyon: {jobTitle}
+                prompt = $@"Meslek Grubu: {profession}
+Pozisyon: {jobTitle}
 Seviye: {level}
+Zorluk: {difficulty}
 Soru Sayısı: {count}
+Dil: {language}
 
-Lütfen bu pozisyon için davranışsal mülakat soruları üret.
-Yumuşak becerilere, takım çalışmasına ve çatışma çözümüne odaklan.
+Lütfen bu pozisyon için hedef dilde ({language}) davranışsal mülakat soruları üret.
+Yumuşak becerilere, takım çalışmasına ve çatışma çözümüne odaklan.{exclusionText}
 
-Çıktıyı kesinlikle bir JSON nesnesi olarak ver:
+Çıktıyı kesinlikle şu JSON formatında ver:
 {{
-  ""questions"": [""Soru 1"", ""Soru 2"", ...]
+  ""questions"": [
+    {{ ""questionText"": ""Soru metni"", ""codeSnippet"": null }},
+    ...
+  ]
 }}";
             }
             else if (type == InterviewQuestionType.Technical)
             {
-                prompt = $@"Pozisyon: {jobTitle}
+                prompt = $@"Meslek Grubu: {profession}
+Pozisyon: {jobTitle}
 Seviye: {level}
+Zorluk: {difficulty}
 Soru Tipi: Teknik
 Soru Sayısı: {count}
+Dil: {language}
 
-Lütfen bu pozisyon ve seviye için teknik mülakatta sorulmak üzere sorular üret.
-Sorular pozisyona uygun, seviyeye göre ayarlanmış ve Türkçe olmalı.
+Lütfen bu meslek grubu ve pozisyon için hedef dilde ({language}) teknik mülakatta sorulmak üzere {difficulty} zorluğunda sorular üret.
+Sorular pozisyona uygun, seviyeye göre ayarlanmış ve seçilen dilde olmalı. Standart sorulardan ziyade analitik düşünmeyi ölç.{exclusionText}
+Eğer soru bir kod parçasını analiz etmeyi gerektiriyorsa, kodu 'codeSnippet' alanına koy, geri kalan anlatımı 'questionText' alanına koy. Kod gerekmiyorsa 'codeSnippet' null olsun.
 
 Format (JSON):
 {{
-  ""questions"": [""Soru 1"", ""Soru 2"", ...]
+  ""questions"": [
+    {{ ""questionText"": ""Soru metni"", ""codeSnippet"": ""opsiyonel kod bloğu"" }},
+    ...
+  ]
+}}";
+            }
+            else if (type == InterviewQuestionType.SystemDesign)
+            {
+                prompt = $@"Meslek Grubu: {profession}
+Pozisyon: {jobTitle}
+Seviye: {level}
+Zorluk: {difficulty}
+Soru Tipi: Teknik Senaryo / Görsel Akıl Yürütme Kod Analizi
+Soru Sayısı: {count}
+Dil: {language}
+
+Bu soru, mülakatın en özel analiz sorusudur. Lütfen adaya '{profession}' ve '{jobTitle}' metriklerine uygun bir KOD PARÇASI (bug bulma, review etme, optimize etme) VEYA SİSTEM MİMARİSİ / ALGORİTMA VAKASI ver. 
+Senaryo mantıklı ve tutarlı bir yazılım/sistem geliştirme problemi olmalı. 
+ÖNEMLİ: Senaryo metnini 'questionText' alanına yaz. İlgili kodu veya diyagramı ise KESİNLİKLE 'codeSnippet' alanına yaz (markdown backtickleri KOYMA, direkt kodu yaz).
+Soru metni içerisinde 'Aşağıdaki kodu inceleyin' gibi ifadeler kullanarak yönlendirme yap.
+
+Format (JSON):
+{{
+  ""questions"": [
+    {{ ""questionText"": ""Senaryo açıklaması ve soru"", ""codeSnippet"": ""Sadece kod veya diyagram metni"" }}
+  ]
 }}";
             }
             else
             {
-                return new List<string>();
+                return new List<InterviewQuestionResult>();
             }
 
             var response = await model.GenerateContent(prompt);
@@ -200,36 +243,72 @@ Format (JSON):
             try
             {
                 var result = JsonSerializer.Deserialize<InterviewQuestionsRoot>(jsonContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                return result?.Questions ?? new List<string>();
+                return result?.Questions ?? new List<InterviewQuestionResult>();
             }
             catch
             {
-                return new List<string>();
+                return new List<InterviewQuestionResult>();
             }
         }
 
-        public async Task<AssessmentResult> EvaluateInterviewAnswerAsync(string question, string answer, string jobTitle, InterviewLevel level)
+        public async Task<FollowUpResult> DecideFollowUpAsync(string question, string answer, string language, CancellationToken cancellationToken = default)
         {
             var model = _googleAI.GenerativeModel(model: _modelName);
 
-            var prompt = $@"Sen {level} seviyesindeki bir {jobTitle} pozisyonu için uzman bir teknik mülakatçısın.
+            var prompt = $@"Sen bir mülakatçısın. Adayın son cevabına göre mülakatın akışını yönetiyorsun.
+Dil: {language}
+
+Soru: ""{question}""
+Adayın Cevabı: ""{answer}""
+
+Görevin: SADECE adayın cevabı çok kapalı, net değil veya bir ek soru (follow-up) gerektiriyorsa 'true' dönmek ve kısa bir takip sorusu yazmak. Normal cevaplarda 'false' dön.
+Çıktıyı mülakat dilinde ({language}) ver.
+
+Sadece şu JSON formatında yanıt ver:
+{{
+  ""requiresFollowUp"": boolean,
+  ""followUpQuestion"": ""takip sorusu metni veya null""
+}}";
+
+            var response = await model.GenerateContent(prompt, cancellationToken: cancellationToken);
+            var jsonContent = CleanJsonResponse(response?.Text ?? "{}");
+
+            try
+            {
+                return JsonSerializer.Deserialize<FollowUpResult>(jsonContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                       ?? new FollowUpResult { RequiresFollowUp = false };
+            }
+            catch
+            {
+                return new FollowUpResult { RequiresFollowUp = false };
+            }
+        }
+
+        public async Task<AssessmentResult> EvaluateInterviewAnswerAsync(string question, string answer, string profession, string jobTitle, InterviewLevel level, DifficultyLevel difficulty, string language, CancellationToken cancellationToken = default)
+        {
+            var model = _googleAI.GenerativeModel(model: _modelName);
+
+            var prompt = $@"Sen {difficulty} zorluk seviyesinde sınav yapan, {profession} alanında ve {jobTitle} pozisyonu için uzman bir teknik mülakatçısın ({level} seviye adayı değerlendiriyorsun).
+Kullanıcının tercih ettiği dil: {language}. Lütfen tüm geri bildirimlerini ve follow-up sorularını bu dilde (örneğin Türkçe ise Türkçe, English ise English) ver.
 
 Adaya sorulan soru: ""{question}""
 Adayın cevabı: ""{answer}""
 
-Cevabı değerlendir:
+Cevabı değerlendir (kullanıcının seçtiği dili kullan {language}):
 1. Kısa ve yapıcı bir geri bildirim ver (maksimum 2 cümle).
-2. Cevabın çok yüzeysel, eksik veya 'kaçamak' olup olmadığına karar ver. Eğer öyleyse ve daha derinlemesine sorgulaman gerekiyorsa 'requiresFollowUp' değerini true yap ve bir 'followUpQuestion' (takip sorusu) yaz.
-3. Eğer cevap yeterliyse veya '[SES_ANLASILAMADI]' gibi teknik bir hata yer tutucusu içeriyorsa, 'requiresFollowUp' false olsun.
+2. Cevabı 0 ile 100 arasında puanla ('score' alanı).
+3. SADECE EĞER cevap KESİNLİKLE kabul edilemez, çok eksik veya tamamen konu dışıysa 'requiresFollowUp' değerini true yap ve bir 'followUpQuestion' (takip sorusu) yaz. Normal veya kabul edilebilir cevaplarda asla follow-up sorma (false olsun).
+4. Eğer cevap '[SES_ANLASILAMADI]' gibi teknik bir hata yer tutucusu içeriyorsa, 'requiresFollowUp' false olsun ve puanı 0 ver.
 
 Sadece şu formatta geçerli bir JSON objesi döndür:
 {{
+  ""score"": 85,
   ""feedback"": ""geri bildirim metni"",
   ""requiresFollowUp"": boolean,
   ""followUpQuestion"": ""takip sorusu veya null""
 }}";
 
-            var response = await model.GenerateContent(prompt);
+            var response = await model.GenerateContent(prompt, cancellationToken: cancellationToken);
             var jsonContent = CleanJsonResponse(response?.Text ?? "{}");
 
             try
@@ -243,13 +322,114 @@ Sadece şu formatta geçerli bir JSON objesi döndür:
             }
         }
 
-        public async Task<string> GenerateFinalFeedbackAsync(string jobTitle, InterviewLevel level, List<InterviewQuestion> questionsAndAnswers)
+        public async Task<AssessmentResult> EvaluateImageAsync(string base64Image, string language, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(base64Image))
+            {
+                return new AssessmentResult { Score = 0, Feedback = "Görüntü sağlanamadı." };
+            }
+
+            var model = _googleAI.GenerativeModel(model: _modelName);
+
+            var prompt = $@"Sen bir İK uzmanısın. Adayın kamerasından alınan bu anlık görüntüye bakarak; kıyafetinin profesyonelliğini, duruşunu, arka planın düzenini ve ortam ışığını bir iş mülakatı standartlarına göre değerlendir.
+Lütfen tüm geri bildirimini şu dilde ver: {language}.
+
+Cevabı değerlendir:
+1. Çok kısa ve yapıcı bir geri bildirim ver (maksimum 2 cümle).
+2. Görüntü profesyonelliğini 0 ile 100 arasında puanla ('score' alanı).
+
+Sadece şu formatta geçerli bir JSON objesi döndür:
+{{
+  ""score"": 85,
+  ""feedback"": ""geri bildirim metni"",
+  ""requiresFollowUp"": false,
+  ""followUpQuestion"": null
+}}";
+
+            var base64Data = base64Image.Contains(",") ? base64Image.Split(',')[1] : base64Image;
+            var mimeType = base64Image.Contains("png") ? "image/png" : "image/jpeg";
+
+            var parts = new List<IPart>
+            {
+                new Part { Text = prompt },
+                new Part { InlineData = new InlineData { MimeType = mimeType, Data = base64Data } }
+            };
+
+            var request = new GenerateContentRequest { Contents = new List<Content> { new Content { Parts = parts } } };
+            
+            try 
+            {
+                var response = await model.GenerateContent(request, cancellationToken: cancellationToken);
+                var jsonContent = CleanJsonResponse(response?.Text ?? "{}");
+                return JsonSerializer.Deserialize<AssessmentResult>(jsonContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                       ?? new AssessmentResult { Feedback = "Error parsing AI response", Score = 0 };
+            }
+            catch (Exception ex)
+            {
+                return new AssessmentResult { Feedback = "Görüntü analiz edilemedi: " + ex.Message, Score = 0 };
+            }
+        }
+
+        public async Task<AssessmentResult> EvaluateAudioToneAsync(Stream audioStream, string language, CancellationToken cancellationToken = default)
+        {
+            if (audioStream == null || audioStream.Length == 0)
+            {
+                return new AssessmentResult { Score = 0, Feedback = "Ses verisi sağlanamadı." };
+            }
+
+            var model = _googleAI.GenerativeModel(model: _modelName);
+
+            var prompt = $@"Sen bir diksiyon ve iletişim uzmanısın. Adayın bu ses kaydındaki ses tonunu, vurgularını, akıcılığını ve özgüvenini profesyonel bir iş mülakatı bağlamında değerlendir.
+Lütfen tüm geri bildirimini şu dilde ver: {language}.
+
+Cevabı değerlendir:
+1. Çok kısa ve yapıcı bir geri bildirim ver (maksimum 2 cümle). (Örn: 'Ses tonunuz çok net ve özgüvenliydi.')
+2. Ses tonu ve akıcılığı 0 ile 100 arasında puanla ('score' alanı).
+
+Sadece şu formatta geçerli bir JSON objesi döndür:
+{{
+  ""score"": 85,
+  ""feedback"": ""geri bildirim metni"",
+  ""requiresFollowUp"": false,
+  ""followUpQuestion"": null
+}}";
+
+            try 
+            {
+                using var memoryStream = new MemoryStream();
+                await audioStream.CopyToAsync(memoryStream);
+                var audioBytes = memoryStream.ToArray();
+                var base64Audio = Convert.ToBase64String(audioBytes);
+                
+                // Varsayılan olarak webm veya mp3/wav gelecek. Ses formatını genel bir ses formatı olarak verelim.
+                var parts = new List<IPart>
+                {
+                    new Part { Text = prompt },
+                    new Part { InlineData = new InlineData { MimeType = "audio/webm", Data = base64Audio } }
+                };
+
+                var request = new GenerateContentRequest { Contents = new List<Content> { new Content { Parts = parts } } };
+                var response = await model.GenerateContent(request, cancellationToken: cancellationToken);
+                
+                var jsonContent = CleanJsonResponse(response?.Text ?? "{}");
+                return JsonSerializer.Deserialize<AssessmentResult>(jsonContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                       ?? new AssessmentResult { Feedback = "Error parsing AI response", Score = 0 };
+            }
+            catch (Exception ex)
+            {
+                return new AssessmentResult { Feedback = "Ses tonu analiz edilemedi: " + ex.Message, Score = 0 };
+            }
+        }
+
+        public async Task<string> GenerateFinalFeedbackAsync(string profession, string jobTitle, InterviewLevel level, DifficultyLevel difficulty, List<InterviewQuestion> questionsAndAnswers, string language, CancellationToken cancellationToken = default)
         {
             var model = _googleAI.GenerativeModel(model: _modelName);
 
             var sb = new StringBuilder();
+            sb.AppendLine($"Meslek: {profession}");
             sb.AppendLine($"Pozisyon: {jobTitle}");
             sb.AppendLine($"Seviye: {level}");
+            sb.AppendLine($"Zorluk: {difficulty}");
             sb.AppendLine("Mülakat Özeti");
             sb.AppendLine();
             sb.AppendLine("İşte mülakat transkripti:");
@@ -262,10 +442,10 @@ Sadece şu formatta geçerli bir JSON objesi döndür:
             }
 
             sb.AppendLine();
-            sb.AppendLine("Kapsamlı bir mülakat değerlendirme raporu oluştur. Güçlü yönleri, gelişime açık yönleri ve nihai 'İşe Alım Kararını' (Olumlu/Olumsuz/Değerlendirilebilir) belirt. Raporu Markdown formatında yaz.");
+            sb.AppendLine($"Kapsamlı bir mülakat değerlendirme raporu oluştur. Güçlü yönleri, gelişime açık yönleri ve nihai 'İşe Alım Kararını' (Olumlu/Olumsuz/Değerlendirilebilir) belirt. Raporu tamamen hedeflenen dilde ({language}) ve Markdown formatında yaz.");
             sb.AppendLine("ÖNEMLİ: Eğer bir cevap '[SES_ANLAŞILAMADI]', '[SES_HATA]' veya '[CEVAP_YOK]' olarak işaretlenmişse, bunu teknik/kullanıcı hatası olarak gör ve 'Cevaplanmadı' kabul et. Bu durum teknik yetkinlik puanını düşürmemeli, sadece verinin eksik olduğu belirtilmeli. Eğer soruların %50'sinden fazlası cevaplanmadıysa mülakatın tamamlanmadığını belirt.");
 
-            var response = await model.GenerateContent(sb.ToString());
+            var response = await model.GenerateContent(sb.ToString(), cancellationToken: cancellationToken);
             return response?.Text ?? string.Empty;
         }
 
@@ -296,7 +476,7 @@ Sadece şu formatta geçerli bir JSON objesi döndür:
         // Helper classes for deserialization
         private class InterviewQuestionsRoot
         {
-            public List<string> Questions { get; set; } = new List<string>();
+            public List<InterviewQuestionResult> Questions { get; set; } = new List<InterviewQuestionResult>();
         }
 
         private class QuizRoot

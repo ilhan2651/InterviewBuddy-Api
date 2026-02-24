@@ -20,7 +20,7 @@ namespace Buddy.Application.Features.Interview.GetReport
 
         public async Task<GetInterviewReportResponse> Handle(GetInterviewReportQuery request, CancellationToken cancellationToken)
         {
-            var session = await _unitOfWork.InterviewSessions.GetWithDetailsAsync(request.SessionId, cancellationToken);
+            var session = await _unitOfWork.InterviewSessions.GetBySessionIdAsync(request.SessionId, cancellationToken);
 
             if (session == null)
             {
@@ -32,9 +32,14 @@ namespace Buddy.Application.Features.Interview.GetReport
                 .Select(q => new QuestionAnswerDto
                 {
                     Question = q.QuestionText,
+                    CodeSnippet = q.CodeSnippet,
                     UserAnswer = q.Answer!.UserAnswerText ?? "Cevap metni bulunamadı",
                     AiFeedback = q.Answer.AIAnalysis ?? "Henüz değerlendirme yapılmadı",
-                    Score = q.Answer.Score ?? 0
+                    Score = q.Answer.Score ?? 0,
+                    VideoScore = q.Answer.VideoScore,
+                    VideoFeedback = q.Answer.VideoFeedback,
+                    AudioScore = q.Answer.AudioScore,
+                    AudioFeedback = q.Answer.AudioFeedback
                 })
                 .ToList();
 

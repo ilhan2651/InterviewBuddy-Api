@@ -7,8 +7,11 @@ namespace Buddy.Domain.Entities
 {
     public class InterviewSession : BaseEntity
     {
+        public string Profession { get; set; } = string.Empty;
+        public DifficultyLevel Difficulty { get; set; } = DifficultyLevel.Medium;
         public string Role { get; set; } = string.Empty; // e.g., ".NET Developer"
         public InterviewLevel Level { get; set; }
+        public string Language { get; set; } = "Turkish"; // Preferred Language
         
         public int UserId { get; set; } // Foreign Key
         public User User { get; set; } = null!; // Navigation

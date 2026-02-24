@@ -10,5 +10,6 @@ namespace Buddy.Application.Common.Interfaces
         Task<InterviewSession?> GetBySessionIdAsync(string sessionId, CancellationToken cancellationToken = default);
         Task<IEnumerable<InterviewSession>> GetCompletedSessionsByUserIdAsync(int userId, CancellationToken cancellationToken = default);
         Task<IEnumerable<InterviewSession>> GetRecentCompletedSessionsByUserIdAsync(int userId, int count, CancellationToken cancellationToken = default);
+        Task<IEnumerable<InterviewSession>> GetUncompletedSessionsByUserIdAsync(int userId, int count, CancellationToken cancellationToken = default);
     }
 }

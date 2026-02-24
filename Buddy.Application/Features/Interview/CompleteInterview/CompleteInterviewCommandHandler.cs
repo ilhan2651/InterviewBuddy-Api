@@ -25,18 +25,18 @@ namespace Buddy.Application.Features.Interview.CompleteInterview
 
         public async Task<CompleteInterviewResponse> Handle(CompleteInterviewCommand request, CancellationToken cancellationToken)
         {
-            var cacheKey = $"rsi:session:{request.InterviewSessionId}";
+            var cacheKey = $"rsi:session:{request.SessionId}";
             var session = await _globalCache.GetAsync<InterviewSession>(cacheKey, cancellationToken);
             
             if (session == null)
             {
-                session = await _unitOfWork.InterviewSessions.GetWithDetailsAsync(request.InterviewSessionId, cancellationToken);
+                session = await _unitOfWork.InterviewSessions.GetBySessionIdAsync(request.SessionId, cancellationToken);
             }
 
             if (session == null) throw new Exception("Interview session not found.");
 
             // Generate Final Feedback
-            var finalReport = await _openAIService.GenerateFinalFeedbackAsync(session.Role, session.Level, session.Questions.ToList());
+            var finalReport = await _openAIService.GenerateFinalFeedbackAsync(session.Profession ?? "Genel Mülakat", session.Role, session.Level, session.Difficulty, session.Questions.ToList(), session.Language, cancellationToken);
 
             // Save to DB
             var dbSession = await _unitOfWork.InterviewSessions.GetByIdAsync(session.Id);

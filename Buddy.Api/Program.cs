@@ -6,6 +6,7 @@ using Buddy.Application.Common.Interfaces;
 using Buddy.Application.Features.Auth.Register;
 using Buddy.Application.Services;
 using Buddy.Infrastructure.Services;
+using Buddy.Infrastructure.Services.ElevenLabs;
 using Buddy.Infrastructure.Services.Gemini;
 using Buddy.Persistence;
 using Buddy.Persistence.Context;
@@ -30,8 +31,13 @@ object value = builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(RegisterCommand).Assembly);
 });
 // 3. Dependency Injection
-builder.Services.AddScoped<ILLMService, GeminiService>();
+builder.Services.AddScoped<GeminiService>();
+builder.Services.AddScoped<IInterviewLLMService>(sp => sp.GetRequiredService<GeminiService>());
+builder.Services.AddScoped<IQuizLLMService>(sp => sp.GetRequiredService<GeminiService>());
+builder.Services.AddScoped<ILLMService>(sp => sp.GetRequiredService<GeminiService>());
+builder.Services.AddHttpClient<ITextToSpeechService, ElevenLabsService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddSingleton<IEncryptionService, AesEncryptionService>();
 builder.Services.AddValidatorsFromAssembly(typeof(Buddy.Application.Features.Auth.Register.RegisterCommand).Assembly);
 
 // 3.1 Redis & Caching
@@ -172,8 +178,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-app.UseStaticFiles();
 app.UseCors("AllowAll");
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 

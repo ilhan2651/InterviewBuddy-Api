@@ -51,5 +51,15 @@ namespace Buddy.Persistence.Repositories
                 .Take(count)
                 .ToListAsync(cancellationToken);
         }
+        public async Task<IEnumerable<InterviewSession>> GetUncompletedSessionsByUserIdAsync(int userId, int count, CancellationToken cancellationToken = default)
+        {
+            return await _context.InterviewSessions
+                .Include(s => s.Questions)
+                .ThenInclude(q => q.Answer)
+                .Where(s => s.UserId == userId && s.CompletedAt == null)
+                .OrderByDescending(s => s.CreatedAt)
+                .Take(count)
+                .ToListAsync(cancellationToken);
+        }
     }
 }

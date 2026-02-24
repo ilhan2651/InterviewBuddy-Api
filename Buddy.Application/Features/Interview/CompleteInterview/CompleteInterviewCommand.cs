@@ -4,7 +4,7 @@ namespace Buddy.Application.Features.Interview.CompleteInterview
 {
     public class CompleteInterviewCommand : IRequest<CompleteInterviewResponse>
     {
-        public int InterviewSessionId { get; set; }
+        public string SessionId { get; set; } = string.Empty;
     }
 
     public class CompleteInterviewResponse

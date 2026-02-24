@@ -4,6 +4,7 @@ namespace Buddy.Application.Features.Interview.GetCurrentQuestion
 {
     public class GetCurrentQuestionQuery : IRequest<GetCurrentQuestionResponse>
     {
-        public int SessionId { get; set; }
+        public string SessionId { get; set; } = string.Empty;
+        public int? TargetQuestionNumber { get; set; }
     }
 }

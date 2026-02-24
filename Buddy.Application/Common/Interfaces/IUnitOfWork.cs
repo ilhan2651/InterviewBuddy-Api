@@ -16,6 +16,7 @@ namespace Buddy.Application.Common.Interfaces
         IUserRepository Users { get; }
         IConversationRepository Conversations { get; }
         IMessageRepository Messages { get; }
+        IUserApiKeyRepository UserApiKeys { get; }
 
         IGenericRepository<T> GetRepository<T>() where T : BaseEntity;
         Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

@@ -5,6 +5,8 @@ namespace Buddy.Domain.Enums
         Intro = 0,
         Behavioral = 1,
         Technical = 2,
-        Closing = 3
+        Closing = 3,
+        SystemDesign = 4,
+
     }
 }

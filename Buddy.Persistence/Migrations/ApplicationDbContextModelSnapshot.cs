@@ -75,6 +75,12 @@ namespace Buddy.Persistence.Migrations
                     b.Property<DateTime>("AnsweredAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("AudioFeedback")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("AudioScore")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -96,6 +102,12 @@ namespace Buddy.Persistence.Migrations
                     b.Property<string>("UserAudioPath")
                         .HasColumnType("text");
 
+                    b.Property<string>("VideoFeedback")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("VideoScore")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("InterviewQuestionId")
@@ -115,13 +127,22 @@ namespace Buddy.Persistence.Migrations
                     b.Property<string>("AudioUrl")
                         .HasColumnType("text");
 
+                    b.Property<string>("CodeSnippet")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ImageUrl")
+                        .HasColumnType("text");
 
                     b.Property<int>("InterviewSessionId")
                         .HasColumnType("integer");
 
                     b.Property<int>("Order")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("ParentId")
                         .HasColumnType("integer");
 
                     b.Property<string>("QuestionText")
@@ -137,6 +158,8 @@ namespace Buddy.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("InterviewSessionId");
+
+                    b.HasIndex("ParentId");
 
                     b.ToTable("InterviewQuestions");
                 });
@@ -155,7 +178,14 @@ namespace Buddy.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("Difficulty")
+                        .HasColumnType("integer");
+
                     b.Property<string>("FinalFeedback")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<int>("Level")
@@ -163,6 +193,10 @@ namespace Buddy.Persistence.Migrations
 
                     b.Property<int?>("OverallScore")
                         .HasColumnType("integer");
+
+                    b.Property<string>("Profession")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Role")
                         .IsRequired()
@@ -397,6 +431,37 @@ namespace Buddy.Persistence.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("Buddy.Domain.Entities.UserApiKey", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ElevenLabsApiKey")
+                        .HasColumnType("text");
+
+                    b.Property<string>("SimliApiKey")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
+
+                    b.ToTable("UserApiKeys");
+                });
+
             modelBuilder.Entity("ConversationUser", b =>
                 {
                     b.Property<int>("ConversationsId")
@@ -441,7 +506,14 @@ namespace Buddy.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Buddy.Domain.Entities.InterviewQuestion", "Parent")
+                        .WithMany("FollowUpQuestions")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("InterviewSession");
+
+                    b.Navigation("Parent");
                 });
 
             modelBuilder.Entity("Buddy.Domain.Entities.InterviewSession", b =>
@@ -499,6 +571,17 @@ namespace Buddy.Persistence.Migrations
                     b.Navigation("Quiz");
                 });
 
+            modelBuilder.Entity("Buddy.Domain.Entities.UserApiKey", b =>
+                {
+                    b.HasOne("Buddy.Domain.Entities.User", "User")
+                        .WithOne("ApiKeys")
+                        .HasForeignKey("Buddy.Domain.Entities.UserApiKey", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("ConversationUser", b =>
                 {
                     b.HasOne("Buddy.Domain.Entities.Conversation", null)
@@ -524,6 +607,8 @@ namespace Buddy.Persistence.Migrations
             modelBuilder.Entity("Buddy.Domain.Entities.InterviewQuestion", b =>
                 {
                     b.Navigation("Answer");
+
+                    b.Navigation("FollowUpQuestions");
                 });
 
             modelBuilder.Entity("Buddy.Domain.Entities.InterviewSession", b =>
@@ -543,6 +628,8 @@ namespace Buddy.Persistence.Migrations
 
             modelBuilder.Entity("Buddy.Domain.Entities.User", b =>
                 {
+                    b.Navigation("ApiKeys");
+
                     b.Navigation("InterviewSessions");
                 });
 #pragma warning restore 612, 618

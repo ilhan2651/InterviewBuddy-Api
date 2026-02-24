@@ -40,7 +40,7 @@ namespace Buddy.Application.Features.User.GetStats
             var allAnswers = userSessions
                 .SelectMany(s => s.Questions)
                 .Where(q => q.Answer != null)
-                .Select(q => q.Answer!.Score)
+                .Select(q => q.Answer!.Score ?? 0)
                 .ToList();
 
             if (!allAnswers.Any())

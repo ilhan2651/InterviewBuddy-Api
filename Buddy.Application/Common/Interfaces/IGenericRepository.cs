@@ -14,6 +14,7 @@ namespace Buddy.Application.Common.Interfaces
         IQueryable<T> GetQueryable();
         Task<IEnumerable<T>> FindAsync(Expression<Func<T, bool>> predicate);
         Task AddAsync(T entity);
+        Task AddRangeAsync(IEnumerable<T> entities);
         void Update(T entity);
         void Delete(T entity);
         Task<bool> AnyAsync(Expression<Func<T, bool>> predicate);

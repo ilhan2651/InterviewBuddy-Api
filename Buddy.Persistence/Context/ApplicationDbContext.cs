@@ -12,6 +12,7 @@ namespace Buddy.Persistence.Context
         }
 
         public DbSet<User> Users { get; set; }
+        public DbSet<UserApiKey> UserApiKeys { get; set; }
         public DbSet<Conversation> Conversations { get; set; } = null!;
         public DbSet<Message> Messages { get; set; } = null!;
         public DbSet<Quiz> Quizzes { get; set; } = null!;
@@ -43,6 +44,18 @@ namespace Buddy.Persistence.Context
                 .WithOne(a => a.InterviewQuestion)
                 .HasForeignKey<InterviewAnswer>(a => a.InterviewQuestionId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<User>()
+                .HasOne(u => u.ApiKeys)
+                .WithOne(a => a.User)
+                .HasForeignKey<UserApiKey>(a => a.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<InterviewQuestion>()
+                .HasOne(q => q.Parent)
+                .WithMany(q => q.FollowUpQuestions)
+                .HasForeignKey(q => q.ParentId)
+                .OnDelete(DeleteBehavior.Restrict); // Prevent cascading deletes on self-reference if unwanted, or use Cascade
         }
     }
 }

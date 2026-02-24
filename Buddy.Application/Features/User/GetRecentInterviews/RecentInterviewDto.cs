@@ -4,6 +4,8 @@ namespace Buddy.Application.Features.User.GetRecentInterviews
 {
     public class RecentInterviewDto
     {
+        public int SessionId { get; set; }
+        public string PublicSessionId { get; set; } = string.Empty;
         public string Role { get; set; } = string.Empty;
         public int Score { get; set; }
         public string Date { get; set; } = string.Empty;

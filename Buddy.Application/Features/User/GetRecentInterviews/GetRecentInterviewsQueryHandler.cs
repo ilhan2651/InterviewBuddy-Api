@@ -30,16 +30,18 @@ namespace Buddy.Application.Features.User.GetRecentInterviews
             {
                 var answers = session.Questions
                     .Where(q => q.Answer != null)
-                    .Select(q => q.Answer!.Score)
+                    .Select(q => q.Answer!.Score ?? 0)
                     .ToList();
 
                 var avgScore = answers.Any() ? (int)answers.Average() : 0;
 
                 return new RecentInterviewDto
                 {
+                    SessionId = session.Id,
+                    PublicSessionId = session.SessionId,
                     Role = session.Role ?? "Genel Mülakat",
                     Score = avgScore,
-                    Date = session.CreatedAt.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("tr-TR"))
+                    Date = session.CreatedAt.ToString("dd MMMM yyyy HH:mm", new System.Globalization.CultureInfo("tr-TR"))
                 };
             }).ToList();
 

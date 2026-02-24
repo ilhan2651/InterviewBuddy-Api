@@ -73,7 +73,7 @@ namespace Buddy.Api.Controllers
         [HttpGet("{sessionId}/current-question")]
         [ProducesResponseType(typeof(GetCurrentQuestionResponse), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> GetCurrentQuestion(int sessionId)
+        public async Task<IActionResult> GetCurrentQuestion(string sessionId)
         {
             var query = new GetCurrentQuestionQuery { SessionId = sessionId };
             var response = await _mediator.Send(query);
@@ -84,7 +84,7 @@ namespace Buddy.Api.Controllers
         [HttpGet("{sessionId}/report")]
         [ProducesResponseType(typeof(GetInterviewReportResponse), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> GetReport(int sessionId)
+        public async Task<IActionResult> GetReport(string sessionId)
         {
             var query = new GetInterviewReportQuery { SessionId = sessionId };
             var response = await _mediator.Send(query);

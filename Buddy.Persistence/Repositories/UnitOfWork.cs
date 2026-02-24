@@ -22,6 +22,7 @@ namespace Buddy.Persistence.Repositories
         private IUserRepository? _users;
         private IConversationRepository? _conversations;
         private IMessageRepository? _messages;
+        private IUserApiKeyRepository? _userApiKeys;
 
         public UnitOfWork(ApplicationDbContext context)
         {
@@ -37,6 +38,7 @@ namespace Buddy.Persistence.Repositories
         public IUserRepository Users => _users ??= new UserRepository(_context);
         public IConversationRepository Conversations => _conversations ??= new ConversationRepository(_context);
         public IMessageRepository Messages => _messages ??= new MessageRepository(_context);
+        public IUserApiKeyRepository UserApiKeys => _userApiKeys ??= new UserApiKeyRepository(_context);
 
         public IGenericRepository<T> GetRepository<T>() where T : BaseEntity
         {

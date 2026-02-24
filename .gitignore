@@ -1,13 +1,21 @@
-vs/
+[Bb]in/
+[Oo]bj/
+
+# Secrets
+appsettings.json
+appsettings.Development.json
+appsettings.local.json
+
+# IDE
+.vs/
+.idea/
+.vscode/
+*.swp
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
 
-# Build results
-[Dd]ebug/
-[Rr]elease/
-x64/
-x86/
-[Bb]in/
-[Oo]bj/
+# OS
+.DS_Store
+Thumbs.db
