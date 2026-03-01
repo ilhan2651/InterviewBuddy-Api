@@ -21,7 +21,6 @@ namespace Buddy.Application.Features.Auth.Login
 
         public async Task<LoginResponse> Handle(LoginCommand request, CancellationToken cancellationToken)
         {
-            // GetByPhoneNumberAsync yerine GetByEmailAsync kullanın
             var user = await _unitOfWork.Users.GetByEmailAsync(request.Email, cancellationToken);
 
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))

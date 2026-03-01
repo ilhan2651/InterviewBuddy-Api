@@ -73,9 +73,9 @@ namespace Buddy.Api.Controllers
         [HttpGet("{sessionId}/current-question")]
         [ProducesResponseType(typeof(GetCurrentQuestionResponse), 200)]
         [ProducesResponseType(404)]
-        public async Task<IActionResult> GetCurrentQuestion(string sessionId)
+        public async Task<IActionResult> GetCurrentQuestion(string sessionId, [FromQuery] int? targetQuestionNumber)
         {
-            var query = new GetCurrentQuestionQuery { SessionId = sessionId };
+            var query = new GetCurrentQuestionQuery { SessionId = sessionId, TargetQuestionNumber = targetQuestionNumber };
             var response = await _mediator.Send(query);
             return Ok(response);
         }
