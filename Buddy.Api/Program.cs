@@ -162,8 +162,7 @@ var app = builder.Build();
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
+
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
@@ -175,7 +174,7 @@ if (app.Environment.IsDevelopment())
         c.EnableDeepLinking();
         c.DisplayRequestDuration();
     });
-}
+
 
 app.UseHttpsRedirection();
 app.UseCors("AllowAll");
