@@ -1,6 +1,5 @@
 using Buddy.Application.Common.Interfaces;
 using Buddy.Application.Services;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -26,7 +25,7 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
         private readonly string _audioRootPath;
 
         public ElevenLabsService(HttpClient httpClient, IConfiguration configuration, Microsoft.Extensions.Logging.ILogger<ElevenLabsService> logger,
-            ICurrentUserService currentUserService, IUnitOfWork unitOfWork, IEncryptionService encryptionService, IWebHostEnvironment webHostEnvironment)
+            ICurrentUserService currentUserService, IUnitOfWork unitOfWork, IEncryptionService encryptionService)
         {
             _httpClient = httpClient;
             _systemApiKey = configuration["ElevenLabs:ApiKey"];
@@ -35,7 +34,7 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
             _currentUserService = currentUserService;
             _unitOfWork = unitOfWork;
             _encryptionService = encryptionService;
-            _audioRootPath = ResolveAudioRootPath(configuration, webHostEnvironment);
+            _audioRootPath = ResolveAudioRootPath(configuration);
         }
 
         private async Task<string> GetActiveApiKeyAsync(CancellationToken cancellationToken = default)
@@ -132,7 +131,7 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
             return relativePath;
         }
 
-        private string ResolveAudioRootPath(IConfiguration configuration, IWebHostEnvironment webHostEnvironment)
+        private string ResolveAudioRootPath(IConfiguration configuration)
         {
             var configuredRoot = configuration["AudioStorage:RootPath"];
             if (!string.IsNullOrWhiteSpace(configuredRoot))
@@ -141,13 +140,7 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
                 return configuredRoot;
             }
 
-            var webRootPath = webHostEnvironment.WebRootPath;
-            if (string.IsNullOrWhiteSpace(webRootPath))
-            {
-                webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
-            }
-
-            var fallbackRoot = Path.Combine(webRootPath, "audio");
+            var fallbackRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "audio");
             _logger.LogInformation("Using fallback audio root path: {AudioRootPath}", fallbackRoot);
             return fallbackRoot;
         }
