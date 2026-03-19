@@ -1,5 +1,6 @@
 using Buddy.Application.Common.Interfaces;
 using Buddy.Application.Services;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -22,9 +23,10 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
         private readonly ICurrentUserService _currentUserService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IEncryptionService _encryptionService;
+        private readonly string _audioRootPath;
 
         public ElevenLabsService(HttpClient httpClient, IConfiguration configuration, Microsoft.Extensions.Logging.ILogger<ElevenLabsService> logger,
-            ICurrentUserService currentUserService, IUnitOfWork unitOfWork, IEncryptionService encryptionService)
+            ICurrentUserService currentUserService, IUnitOfWork unitOfWork, IEncryptionService encryptionService, IWebHostEnvironment webHostEnvironment)
         {
             _httpClient = httpClient;
             _systemApiKey = configuration["ElevenLabs:ApiKey"];
@@ -33,6 +35,7 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
             _currentUserService = currentUserService;
             _unitOfWork = unitOfWork;
             _encryptionService = encryptionService;
+            _audioRootPath = ResolveAudioRootPath(configuration, webHostEnvironment);
         }
 
         private async Task<string> GetActiveApiKeyAsync(CancellationToken cancellationToken = default)
@@ -107,21 +110,46 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
 
         public async Task<string> SaveAudioAsync(Stream audioStream, string fileName, CancellationToken cancellationToken = default)
         {
-            // wwwroot/audio/ai klasörüne kaydet
-            var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "audio", "ai");
+            // Save under the configured audio root so dev/prod can use different storage.
+            var folderPath = Path.Combine(_audioRootPath, "ai");
             if (!Directory.Exists(folderPath))
             {
                 Directory.CreateDirectory(folderPath);
+                _logger.LogInformation("Created audio output folder at {FolderPath}", folderPath);
             }
 
             var filePath = Path.Combine(folderPath, fileName);
+            long writtenBytes;
             using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
             {
                 await audioStream.CopyToAsync(fileStream, cancellationToken);
+                await fileStream.FlushAsync(cancellationToken);
+                writtenBytes = fileStream.Length;
             }
 
-            // Web için relative path döndür
-            return Path.Combine("audio", "ai", fileName).Replace("\\", "/");
+            var relativePath = Path.Combine("audio", "ai", fileName).Replace("\\", "/");
+            _logger.LogInformation("Saved TTS audio file. RelativePath: {RelativePath}, FilePath: {FilePath}, Bytes: {WrittenBytes}, Exists: {Exists}", relativePath, filePath, writtenBytes, File.Exists(filePath));
+            return relativePath;
+        }
+
+        private string ResolveAudioRootPath(IConfiguration configuration, IWebHostEnvironment webHostEnvironment)
+        {
+            var configuredRoot = configuration["AudioStorage:RootPath"];
+            if (!string.IsNullOrWhiteSpace(configuredRoot))
+            {
+                _logger.LogInformation("Using configured audio root path: {AudioRootPath}", configuredRoot);
+                return configuredRoot;
+            }
+
+            var webRootPath = webHostEnvironment.WebRootPath;
+            if (string.IsNullOrWhiteSpace(webRootPath))
+            {
+                webRootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+            }
+
+            var fallbackRoot = Path.Combine(webRootPath, "audio");
+            _logger.LogInformation("Using fallback audio root path: {AudioRootPath}", fallbackRoot);
+            return fallbackRoot;
         }
 
         public async Task<string> SpeechToTextAsync(Stream audioStream, CancellationToken cancellationToken = default)

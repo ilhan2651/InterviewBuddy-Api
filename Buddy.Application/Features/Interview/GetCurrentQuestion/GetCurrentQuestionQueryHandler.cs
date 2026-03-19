@@ -4,6 +4,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -104,6 +105,19 @@ namespace Buddy.Application.Features.Interview.GetCurrentQuestion
             else
             {
                 _logger.LogInformation("Question {QuestionId} already has AudioUrl: {AudioUrl}", currentQuestion.Id, currentQuestion.AudioUrl);
+            }
+
+            if (!string.IsNullOrWhiteSpace(currentQuestion.AudioUrl))
+            {
+                var relativeAudioPath = currentQuestion.AudioUrl.Replace('/', Path.DirectorySeparatorChar);
+                var absoluteAudioPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", relativeAudioPath);
+                var fileExists = File.Exists(absoluteAudioPath);
+                var fileSize = fileExists ? new FileInfo(absoluteAudioPath).Length : 0;
+                _logger.LogInformation("Audio file diagnostics for Question {QuestionId}. RelativeUrl: {AudioUrl}, AbsolutePath: {AbsoluteAudioPath}, Exists: {FileExists}, Bytes: {FileSize}", currentQuestion.Id, currentQuestion.AudioUrl, absoluteAudioPath, fileExists, fileSize);
+            }
+            else
+            {
+                _logger.LogWarning("Question {QuestionId} still has no AudioUrl after TTS processing.", currentQuestion.Id);
             }
 
             return new GetCurrentQuestionResponse
