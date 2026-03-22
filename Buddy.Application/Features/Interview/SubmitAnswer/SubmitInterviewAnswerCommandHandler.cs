@@ -18,16 +18,16 @@ namespace Buddy.Application.Features.Interview.SubmitAnswer
     public class SubmitInterviewAnswerCommandHandler : IRequestHandler<SubmitInterviewAnswerCommand, SubmitInterviewAnswerResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IInterviewLLMService _openAIService;
+        private readonly IInterviewLLMService _interviewLLMService;
         private readonly IGlobalCache _globalCache;
         private readonly ITextToSpeechService _ttsService;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Microsoft.Extensions.Logging.ILogger<SubmitInterviewAnswerCommandHandler> _logger;
 
-        public SubmitInterviewAnswerCommandHandler(IUnitOfWork unitOfWork, IInterviewLLMService openAIService, IGlobalCache globalCache, ITextToSpeechService ttsService, IServiceScopeFactory scopeFactory, Microsoft.Extensions.Logging.ILogger<SubmitInterviewAnswerCommandHandler> logger)
+        public SubmitInterviewAnswerCommandHandler(IUnitOfWork unitOfWork, IInterviewLLMService interviewLLMService, IGlobalCache globalCache, ITextToSpeechService ttsService, IServiceScopeFactory scopeFactory, Microsoft.Extensions.Logging.ILogger<SubmitInterviewAnswerCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
-            _openAIService = openAIService;
+            _interviewLLMService = interviewLLMService;
             _globalCache = globalCache;
             _ttsService = ttsService;
             _scopeFactory = scopeFactory;
@@ -161,38 +161,28 @@ namespace Buddy.Application.Features.Interview.SubmitAnswer
 
                         bgLogger.LogInformation("[BG] Starting background evaluation for QuestionId: {QuestionId}", qId);
 
-                        // Parallel evaluation tasks
+                        // Only the textual answer is evaluated per-question.
                         var t_text = bgLlm.EvaluateInterviewAnswerAsync(qText, answerText, sessionProfession, sessionRole, sessionLevel, sessionDifficulty, sessionLanguage);
-                        
-                        Task<AssessmentResult>? t_image = null;
-                        if (!string.IsNullOrEmpty(snapshot)) t_image = bgLlm.EvaluateImageAsync(snapshot, sessionLanguage);
-
-                        Task<AssessmentResult>? t_audio = null;
-                        if (!string.IsNullOrEmpty(audioPath))
-                        {
-                            var path = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", audioPath);
-                            if (File.Exists(path))
-                            {
-                                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-                                t_audio = bgLlm.EvaluateAudioToneAsync(stream, sessionLanguage);
-                                await Task.WhenAll(t_text, t_image ?? Task.FromResult<AssessmentResult>(null!), t_audio);
-                            }
-                            else await Task.WhenAll(t_text, t_image ?? Task.FromResult<AssessmentResult>(null!));
-                        }
-                        else await Task.WhenAll(t_text, t_image ?? Task.FromResult<AssessmentResult>(null!));
+                        await t_text;
 
                         var resText = await t_text;
-                        var resImage = t_image != null ? await t_image : null;
-                        var resAudio = t_audio != null ? await t_audio : null;
-
-                        // Calculate final weighted score
                         var bgFinalScore = resText.Score;
-                        if (resImage != null || resAudio != null)
+                        string idealAnswerSummary = string.Empty;
+
+                        if (!string.IsNullOrWhiteSpace(answerText) &&
+                            answerText != "[SES_ANLASILAMADI]" &&
+                            answerText != "[SES_HATA]")
                         {
-                            double wT = 0.8, wI = resImage != null ? 0.1 : 0, wA = resAudio != null ? 0.1 : 0;
-                            if (resImage == null && resAudio != null) wA = 0.2;
-                            if (resAudio == null && resImage != null) wI = 0.2;
-                            bgFinalScore = (int)Math.Round((resText.Score * wT) + ((resImage?.Score ?? 0) * wI) + ((resAudio?.Score ?? 0) * wA));
+                            idealAnswerSummary = await bgLlm.GenerateIdealAnswerSummaryAsync(
+                                qText,
+                                answerText,
+                                resText.Feedback,
+                                sessionProfession,
+                                sessionRole,
+                                sessionLevel,
+                                sessionDifficulty,
+                                sessionLanguage,
+                                CancellationToken.None);
                         }
 
                         // Persist to DB - use GetRepository for simplicity
@@ -204,10 +194,7 @@ namespace Buddy.Application.Features.Interview.SubmitAnswer
                         {
                             dbAnswer.AIAnalysis = resText.Feedback;
                             dbAnswer.Score = bgFinalScore;
-                            dbAnswer.VideoScore = resImage?.Score;
-                            dbAnswer.VideoFeedback = resImage?.Feedback;
-                            dbAnswer.AudioScore = resAudio?.Score;
-                            dbAnswer.AudioFeedback = resAudio?.Feedback;
+                            dbAnswer.IdealAnswerSummary = idealAnswerSummary;
                             await bgUow.SaveChangesAsync(CancellationToken.None);
                             bgLogger.LogInformation("[BG] Background evaluation COMPLETED for {QuestionId}. Score: {Score}", qId, bgFinalScore);
                         }
@@ -227,7 +214,7 @@ namespace Buddy.Application.Features.Interview.SubmitAnswer
                     _logger.LogInformation("Deterministic follow-up triggered for Session: {SessionId}, Order: {Order}", request.SessionId, currentQuestion.Order);
                     
                     // Generate ONLY the question text using AI
-                    var followUpInfo = await _openAIService.DecideFollowUpAsync(
+                    var followUpInfo = await _interviewLLMService.DecideFollowUpAsync(
                         currentQuestion.QuestionText,
                         request.AnswerText,
                         session.Language,

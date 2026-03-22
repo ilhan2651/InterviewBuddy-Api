@@ -51,7 +51,8 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
                 
                 if (user != null)
                 {
-                    bool hasFreeQuota = (userId == 2) || (user.InterviewSessions.Count == 0);
+                    var completedInterviewCount = user.InterviewSessions.Count(s => s.CompletedAt.HasValue);
+                    bool hasFreeQuota = completedInterviewCount == 0;
                     if (!hasFreeQuota)
                     {
                         if (user.ApiKeys == null || string.IsNullOrEmpty(user.ApiKeys.ElevenLabsApiKey))

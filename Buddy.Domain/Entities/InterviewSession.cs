@@ -23,7 +23,12 @@ namespace Buddy.Domain.Entities
         
         // Navigation Properties
         public ICollection<InterviewQuestion> Questions { get; set; } = new List<InterviewQuestion>();
-        
+
+        public int? CommunicationScore { get; set; }
+        public string? CommunicationFeedback { get; set; }
+        public int? ConfidenceScore { get; set; }
+        public string? ConfidenceFeedback { get; set; }
+
         public string? FinalFeedback { get; set; }
         public int? OverallScore { get; set; }
 

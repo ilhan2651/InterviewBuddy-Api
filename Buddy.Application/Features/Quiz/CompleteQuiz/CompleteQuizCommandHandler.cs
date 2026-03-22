@@ -16,12 +16,12 @@ namespace Buddy.Application.Features.Quiz.CompleteQuiz
     public class CompleteQuizCommandHandler : IRequestHandler<CompleteQuizCommand, QuizResultResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly ILLMService _openAIService;
+        private readonly IQuizLLMService _quizLLMService;
 
-        public CompleteQuizCommandHandler(IUnitOfWork unitOfWork, ILLMService openAIService)
+        public CompleteQuizCommandHandler(IUnitOfWork unitOfWork, IQuizLLMService quizLLMService)
         {
             _unitOfWork = unitOfWork;
-            _openAIService = openAIService;
+            _quizLLMService = quizLLMService;
         }
 
         public async Task<QuizResultResponse> Handle(CompleteQuizCommand request, CancellationToken cancellationToken)
@@ -57,7 +57,7 @@ namespace Buddy.Application.Features.Quiz.CompleteQuiz
             }
 
             // 3. Call AI for Evaluation
-            var evaluationResult = await _openAIService.EvaluateQuizAsync(evalInputs);
+            var evaluationResult = await _quizLLMService.EvaluateQuizAsync(evalInputs);
 
             // 4. Update Database
             foreach (var eval in evaluationResult.Evaluations)

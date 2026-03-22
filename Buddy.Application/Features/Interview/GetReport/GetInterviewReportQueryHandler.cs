@@ -1,8 +1,7 @@
 using Buddy.Application.Common.Interfaces;
-using Buddy.Domain.Entities;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,19 +32,14 @@ namespace Buddy.Application.Features.Interview.GetReport
                 {
                     Question = q.QuestionText,
                     CodeSnippet = q.CodeSnippet,
-                    UserAnswer = q.Answer!.UserAnswerText ?? "Cevap metni bulunamadı",
-                    AiFeedback = q.Answer.AIAnalysis ?? "Henüz değerlendirme yapılmadı",
+                    UserAnswer = q.Answer!.UserAnswerText ?? "Cevap metni bulunamadi",
+                    AiFeedback = q.Answer.AIAnalysis ?? "Henuz degerlendirme yapilmadi",
                     Score = q.Answer.Score ?? 0,
-                    VideoScore = q.Answer.VideoScore,
-                    VideoFeedback = q.Answer.VideoFeedback,
-                    AudioScore = q.Answer.AudioScore,
-                    AudioFeedback = q.Answer.AudioFeedback
+                    IdealAnswerSummary = q.Answer.IdealAnswerSummary
                 })
                 .ToList();
 
-            // Calculate category scores
-            var totalQuestions = questionAnswers.Count;
-            if (totalQuestions == 0)
+            if (!questionAnswers.Any())
             {
                 return new GetInterviewReportResponse
                 {
@@ -54,18 +48,20 @@ namespace Buddy.Application.Features.Interview.GetReport
                     CommunicationScore = 0,
                     ConfidenceScore = 0,
                     QuestionAnswers = questionAnswers,
-                    Recommendations = new List<string> { "Mülakat tamamlanmamış" }
+                    Strengths = new List<string> { "Mulakat tamamlanmamis" },
+                    ImprovementAreas = new List<string> { "Mulakat tamamlanmamis" },
+                    ImprovmentArea = new List<string> { "Mulakat tamamlanmamis" },
+                    Recommendations = new List<string> { "Mulakat tamamlanmamis" }
                 };
             }
 
-            var overallScore = (int)questionAnswers.Average(qa => qa.Score);
-            
-            // Mock category scores (ideally these would be calculated based on question types)
-            var technicalScore = Math.Min(100, overallScore + new Random().Next(-10, 15));
-            var communicationScore = Math.Min(100, overallScore + new Random().Next(-15, 10));
-            var confidenceScore = Math.Min(100, overallScore + new Random().Next(-10, 10));
+            var overallScore = ClampScore(questionAnswers.Average(qa => qa.Score));
+            var technicalScore = overallScore;
+            var communicationScore = session.CommunicationScore ?? overallScore;
+            var confidenceScore = session.ConfidenceScore ?? overallScore;
 
-            // Generate recommendations
+            var strengths = GenerateStrengths(technicalScore, communicationScore, confidenceScore);
+            var improvementAreas = GenerateImprovementAreas(technicalScore, communicationScore, confidenceScore);
             var recommendations = GenerateRecommendations(overallScore, technicalScore, communicationScore, confidenceScore);
 
             return new GetInterviewReportResponse
@@ -75,7 +71,10 @@ namespace Buddy.Application.Features.Interview.GetReport
                 CommunicationScore = communicationScore,
                 ConfidenceScore = confidenceScore,
                 QuestionAnswers = questionAnswers,
-                Recommendations = recommendations
+                Recommendations = recommendations,
+                Strengths = strengths,
+                ImprovementAreas = improvementAreas,
+                ImprovmentArea = improvementAreas
             };
         }
 
@@ -85,33 +84,92 @@ namespace Buddy.Application.Features.Interview.GetReport
 
             if (technical < 70)
             {
-                recommendations.Add("Teknik bilgini geliştirmek için ilgili konularda daha fazla pratik yapmalısın");
+                recommendations.Add("Teknik bilgini gelistirmek icin ilgili konularda daha fazla pratik yapmalisin");
             }
 
             if (communication < 70)
             {
-                recommendations.Add("Cevaplarında daha net ve yapılandırılmış bir anlatım kullanmaya çalış");
+                recommendations.Add("Cevaplarinda daha net ve yapilandirilmis bir anlatim kullanmaya calis");
             }
 
             if (confidence < 70)
             {
-                recommendations.Add("Kendine güvenini artırmak için daha fazla mülakat pratiği yapabilirsin");
+                recommendations.Add("Kendine guvenini artirmak icin daha fazla mulakat pratigi yapabilirsin");
             }
 
             if (overall >= 80)
             {
-                recommendations.Add("Harika bir performans! Gerçek mülakata hazırsın");
+                recommendations.Add("Harika bir performans! Gercek mulakata hazirsin");
             }
             else if (overall >= 60)
             {
-                recommendations.Add("İyi bir başlangıç, birkaç pratikle daha da iyileştirebilirsin");
+                recommendations.Add("Iyi bir baslangic, birkac pratikle daha da iyilestirebilirsin");
             }
             else
             {
-                recommendations.Add("Daha fazla hazırlık ve pratik yapman gerekiyor");
+                recommendations.Add("Daha fazla hazirlik ve pratik yapman gerekiyor");
             }
 
             return recommendations;
+        }
+
+        private static int ClampScore(double score)
+        {
+            return Math.Max(0, Math.Min(100, (int)Math.Round(score)));
+        }
+
+        private List<string> GenerateStrengths(int technical, int communication, int confidence)
+        {
+            var strengths = new List<string>();
+
+            if (technical >= 75)
+            {
+                strengths.Add("Teknik bilgi ve problem cozme tarafi guclu gorunuyor");
+            }
+
+            if (communication >= 75)
+            {
+                strengths.Add("Kendini acik ve anlasilir ifade edebiliyorsun");
+            }
+
+            if (confidence >= 75)
+            {
+                strengths.Add("Sunum ve genel ozguven tarafinda guclu bir izlenim birakiyorsun");
+            }
+
+            if (!strengths.Any())
+            {
+                strengths.Add("Temel mulakat akisini surdurebilecek bir baslangic seviyen var");
+            }
+
+            return strengths;
+        }
+
+        private List<string> GenerateImprovementAreas(int technical, int communication, int confidence)
+        {
+            var improvementAreas = new List<string>();
+
+            if (technical < 70)
+            {
+                improvementAreas.Add("Teknik cevaplarda daha derin, ornekli ve yapilandirilmis aciklamalar vermeye odaklan");
+            }
+
+            if (communication < 70)
+            {
+                improvementAreas.Add("Cevaplarini daha net, kisa ve duzenli parcalara ayirarak anlatmayi dene");
+            }
+
+            if (confidence < 70)
+            {
+                improvementAreas.Add("Daha fazla pratik yaparak ses tonu, akicilik ve genel sunum tarafini guclendirebilirsin");
+            }
+
+            if (!improvementAreas.Any())
+            {
+                improvementAreas.Add("Su an icin belirgin bir zayif alan gorunmuyor, mevcut performansini koruyacak sekilde pratik yapmaya devam et");
+            }
+
+            return improvementAreas;
         }
     }
 }

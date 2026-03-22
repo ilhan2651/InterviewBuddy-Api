@@ -15,12 +15,12 @@ namespace Buddy.Application.Features.Quiz.SubmitAnswer
     public class SubmitAnswerCommandHandler : IRequestHandler<SubmitAnswerCommand, SubmitAnswerResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly ILLMService _openAIService;
+        private readonly IChatLLMService _chatLLMService;
 
-        public SubmitAnswerCommandHandler(IUnitOfWork unitOfWork, ILLMService openAIService)
+        public SubmitAnswerCommandHandler(IUnitOfWork unitOfWork, IChatLLMService chatLLMService)
         {
             _unitOfWork = unitOfWork;
-            _openAIService = openAIService;
+            _chatLLMService = chatLLMService;
         }
 
         public async Task<SubmitAnswerResponse> Handle(SubmitAnswerCommand request, CancellationToken cancellationToken)
@@ -58,7 +58,7 @@ namespace Buddy.Application.Features.Quiz.SubmitAnswer
                 if (string.IsNullOrWhiteSpace(finalAnswer))
                 {
                     using var audioFileStream = File.OpenRead(absolutePath);
-                    finalAnswer = await _openAIService.TranscribeAudioAsync(audioFileStream);
+                    finalAnswer = await _chatLLMService.TranscribeAudioAsync(audioFileStream);
                 }
             }
 

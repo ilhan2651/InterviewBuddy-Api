@@ -31,10 +31,9 @@ object value = builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(RegisterCommand).Assembly);
 });
 // 3. Dependency Injection
-builder.Services.AddScoped<GeminiService>();
-builder.Services.AddScoped<IInterviewLLMService>(sp => sp.GetRequiredService<GeminiService>());
-builder.Services.AddScoped<IQuizLLMService>(sp => sp.GetRequiredService<GeminiService>());
-builder.Services.AddScoped<ILLMService>(sp => sp.GetRequiredService<GeminiService>());
+builder.Services.AddScoped<IChatLLMService, GeminiChatService>();
+builder.Services.AddScoped<IInterviewLLMService, GeminiInterviewService>();
+builder.Services.AddScoped<IQuizLLMService, GeminiQuizService>();
 builder.Services.AddHttpClient<ITextToSpeechService, ElevenLabsService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddSingleton<IEncryptionService, AesEncryptionService>();

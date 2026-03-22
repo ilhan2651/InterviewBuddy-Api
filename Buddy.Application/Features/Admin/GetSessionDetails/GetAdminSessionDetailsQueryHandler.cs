@@ -48,10 +48,6 @@ namespace Buddy.Application.Features.Admin.GetSessionDetails
                         UserAnswerText = q.Answer.UserAnswerText ?? "",
                         AIAnalysis = q.Answer.AIAnalysis ?? "",
                         Score = q.Answer.Score ?? 0,
-                        VideoScore = q.Answer.VideoScore,
-                        VideoFeedback = q.Answer.VideoFeedback,
-                        AudioScore = q.Answer.AudioScore,
-                        AudioFeedback = q.Answer.AudioFeedback,
                         AnsweredAt = q.Answer.AnsweredAt.ToString("dd/MM/yyyy HH:mm")
                     }
                 }).ToList()

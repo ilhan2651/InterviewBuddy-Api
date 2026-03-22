@@ -17,17 +17,17 @@ namespace Buddy.Application.Features.Interview.StartInterview
     public class StartInterviewCommandHandler : IRequestHandler<StartInterviewCommand, StartInterviewResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IInterviewLLMService _openAIService;
+        private readonly IInterviewLLMService _interviewLLMService;
         private readonly IGlobalCache _globalCache;
         private readonly ICurrentUserService _currentUserService;
         private readonly ITextToSpeechService _ttsService;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly Microsoft.Extensions.Logging.ILogger<StartInterviewCommandHandler> _logger;
 
-        public StartInterviewCommandHandler(IUnitOfWork unitOfWork, IInterviewLLMService openAIService, IGlobalCache globalCache, ICurrentUserService currentUserService, ITextToSpeechService ttsService, IServiceScopeFactory scopeFactory, Microsoft.Extensions.Logging.ILogger<StartInterviewCommandHandler> logger)
+        public StartInterviewCommandHandler(IUnitOfWork unitOfWork, IInterviewLLMService interviewLLMService, IGlobalCache globalCache, ICurrentUserService currentUserService, ITextToSpeechService ttsService, IServiceScopeFactory scopeFactory, Microsoft.Extensions.Logging.ILogger<StartInterviewCommandHandler> logger)
         {
             _unitOfWork = unitOfWork;
-            _openAIService = openAIService;
+            _interviewLLMService = interviewLLMService;
             _globalCache = globalCache;
             _currentUserService = currentUserService;
             _ttsService = ttsService;
@@ -88,7 +88,7 @@ namespace Buddy.Application.Features.Interview.StartInterview
             questions.Add(new InterviewQuestion { InterviewSessionId = session.Id, QuestionText = "Hoş geldiniz! Mülakatımıza başlayabiliriz. Öncelikle kendinizden kısaca bahsedebilir misiniz?", Type = InterviewQuestionType.Intro, Order = order++ });
 
             // 2.2 Behavioral (2 Questions)
-            var behavioralResults = await _openAIService.GenerateInterviewQuestionsAsync(
+            var behavioralResults = await _interviewLLMService.GenerateInterviewQuestionsAsync(
                 request.Profession, request.JobTitle, request.Level, request.Difficulty, InterviewQuestionType.Behavioral, 2, request.Language, previouslyAskedQuestions, cancellationToken);
             
             foreach (var res in behavioralResults)
@@ -104,7 +104,7 @@ namespace Buddy.Application.Features.Interview.StartInterview
             }
 
             // 2.3 Technical (5 Questions)
-            var technicalResults = await _openAIService.GenerateInterviewQuestionsAsync(
+            var technicalResults = await _interviewLLMService.GenerateInterviewQuestionsAsync(
                 request.Profession, request.JobTitle, request.Level, request.Difficulty, InterviewQuestionType.Technical, 5, request.Language, previouslyAskedQuestions, cancellationToken);
 
             foreach (var res in technicalResults)

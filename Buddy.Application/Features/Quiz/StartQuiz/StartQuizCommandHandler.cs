@@ -14,13 +14,13 @@ namespace Buddy.Application.Features.Quiz.StartQuiz
     public class StartQuizCommandHandler : IRequestHandler<StartQuizCommand, StartQuizResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly ILLMService _openAIService;
+        private readonly IQuizLLMService _quizLLMService;
         private readonly ICurrentUserService _currentUserService;
 
-        public StartQuizCommandHandler(IUnitOfWork unitOfWork, ILLMService openAIService, ICurrentUserService currentUserService)
+        public StartQuizCommandHandler(IUnitOfWork unitOfWork, IQuizLLMService quizLLMService, ICurrentUserService currentUserService)
         {
             _unitOfWork = unitOfWork;
-            _openAIService = openAIService;
+            _quizLLMService = quizLLMService;
             _currentUserService = currentUserService;
         }
 
@@ -55,7 +55,7 @@ namespace Buddy.Application.Features.Quiz.StartQuiz
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // 3. Generate Questions
-            var generatedQuestions = await _openAIService.GenerateQuizQuestionsAsync(
+            var generatedQuestions = await _quizLLMService.GenerateQuizQuestionsAsync(
                 request.Topic, 
                 request.Difficulty, 
                 request.QuestionCount);

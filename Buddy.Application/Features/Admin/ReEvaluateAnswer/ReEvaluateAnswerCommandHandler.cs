@@ -11,12 +11,12 @@ namespace Buddy.Application.Features.Admin.ReEvaluateAnswer
     public class ReEvaluateAnswerCommandHandler : IRequestHandler<ReEvaluateAnswerCommand, ReEvaluateAnswerResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly ILLMService _llmService;
+        private readonly IInterviewLLMService _interviewLLMService;
 
-        public ReEvaluateAnswerCommandHandler(IUnitOfWork unitOfWork, ILLMService llmService)
+        public ReEvaluateAnswerCommandHandler(IUnitOfWork unitOfWork, IInterviewLLMService interviewLLMService)
         {
             _unitOfWork = unitOfWork;
-            _llmService = llmService;
+            _interviewLLMService = interviewLLMService;
         }
 
         public async Task<ReEvaluateAnswerResponse> Handle(ReEvaluateAnswerCommand request, CancellationToken cancellationToken)
@@ -36,7 +36,7 @@ namespace Buddy.Application.Features.Admin.ReEvaluateAnswer
 
             var session = answer.InterviewQuestion.InterviewSession;
 
-            var assessment = await _llmService.EvaluateInterviewAnswerAsync(
+            var assessment = await _interviewLLMService.EvaluateInterviewAnswerAsync(
                 answer.InterviewQuestion.QuestionText,
                 textToEvaluate,
                 session.Profession ?? "Genel Mülakat",

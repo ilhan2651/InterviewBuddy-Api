@@ -37,7 +37,8 @@ namespace Buddy.Application.Features.User.GetQuotaStatus
                 throw new UnauthorizedAccessException("Kullanıcı bulunamadı.");
             }
 
-            bool hasFreeQuota = (userId == 2) || (user.InterviewSessions.Count == 0);
+            var completedInterviewCount = user.InterviewSessions.Count(s => s.CompletedAt.HasValue);
+            bool hasFreeQuota = completedInterviewCount == 0;
             bool hasOwnKeys = user.ApiKeys != null && 
                               !string.IsNullOrEmpty(user.ApiKeys.SimliApiKey) && 
                               !string.IsNullOrEmpty(user.ApiKeys.ElevenLabsApiKey);

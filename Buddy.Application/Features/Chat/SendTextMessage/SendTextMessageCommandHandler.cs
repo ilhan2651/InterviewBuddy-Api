@@ -16,13 +16,13 @@ namespace Buddy.Application.Features.Chat.SendTextMessage
     public class SendTextMessageCommandHandler : IRequestHandler<SendTextMessageCommand, SendTextMessageResponse>
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly ILLMService _openAIService;
+        private readonly IChatLLMService _chatLLMService;
         private readonly ICurrentUserService _currentUserService;
 
-        public SendTextMessageCommandHandler(IUnitOfWork unitOfWork, ILLMService openAIService, ICurrentUserService currentUserService)
+        public SendTextMessageCommandHandler(IUnitOfWork unitOfWork, IChatLLMService chatLLMService, ICurrentUserService currentUserService)
         {
             _unitOfWork = unitOfWork;
-            _openAIService = openAIService;
+            _chatLLMService = chatLLMService;
             _currentUserService = currentUserService;
         }
 
@@ -62,10 +62,10 @@ namespace Buddy.Application.Features.Chat.SendTextMessage
                 .ToList();
 
             // 4. Generate AI Response
-            var aiTextResponse = await _openAIService.GenerateChatResponseAsync(request.Message, history);
+            var aiTextResponse = await _chatLLMService.GenerateChatResponseAsync(request.Message, history);
 
             // 5. Generate TTS
-            var audioStream = await _openAIService.TextToSpeechAsync(aiTextResponse);
+            var audioStream = await _chatLLMService.TextToSpeechAsync(aiTextResponse);
 
             // 6. Save AI Message
             var aiMsg = new Message

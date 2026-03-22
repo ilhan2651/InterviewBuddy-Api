@@ -15,13 +15,13 @@ namespace Buddy.Application.Features.Chat.SendAudioMessage
     public class SendAudioMessageCommandHandler : IRequestHandler<SendAudioMessageCommand, SendTextMessageResponse>
     {
         private readonly IMediator _mediator;
-        private readonly ILLMService _openAIService;
+        private readonly IChatLLMService _chatLLMService;
         private readonly IUnitOfWork _unitOfWork;
 
-        public SendAudioMessageCommandHandler(IMediator mediator, ILLMService openAIService, IUnitOfWork unitOfWork)
+        public SendAudioMessageCommandHandler(IMediator mediator, IChatLLMService chatLLMService, IUnitOfWork unitOfWork)
         {
             _mediator = mediator;
-            _openAIService = openAIService;
+            _chatLLMService = chatLLMService;
             _unitOfWork = unitOfWork;
         }
 
@@ -48,7 +48,7 @@ namespace Buddy.Application.Features.Chat.SendAudioMessage
             // 2. Transcribe Audio using Whisper
             // We need a fresh stream since the previous one was consumed by File.Create
             using var fileStreamForTranscription = File.OpenRead(absolutePath);
-            var transcribedText = await _openAIService.TranscribeAudioAsync(fileStreamForTranscription);
+            var transcribedText = await _chatLLMService.TranscribeAudioAsync(fileStreamForTranscription);
 
             if (string.IsNullOrWhiteSpace(transcribedText))
             {

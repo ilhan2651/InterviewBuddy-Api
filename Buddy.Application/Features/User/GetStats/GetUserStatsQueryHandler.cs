@@ -1,7 +1,5 @@
 using Buddy.Application.Common.Interfaces;
-using Buddy.Domain.Entities;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Threading;
@@ -22,7 +20,6 @@ namespace Buddy.Application.Features.User.GetStats
 
         public async Task<GetUserStatsResponse> Handle(GetUserStatsQuery request, CancellationToken cancellationToken)
         {
-            // ✅ DÜZELTME: Tek Where ile && kullan
             var userId = _currentUserService.UserId ?? 0;
             var userSessions = (await _unitOfWork.InterviewSessions.GetCompletedSessionsByUserIdAsync(userId, cancellationToken)).ToList();
 
@@ -54,19 +51,22 @@ namespace Buddy.Application.Features.User.GetStats
                 };
             }
 
-            var avgScore = (int)allAnswers.Average();
+            var avgScore = (int)Math.Round(allAnswers.Average());
+            var sessionsWithCommunication = userSessions.Where(s => s.CommunicationScore.HasValue).ToList();
+            var sessionsWithConfidence = userSessions.Where(s => s.ConfidenceScore.HasValue).ToList();
 
-            // ✅ DÜZELTME: Seed kullan - aynı user için tutarlı sonuçlar
-            var random = new Random(userId.GetHashCode());
+            var communicationScore = sessionsWithCommunication.Any()
+                ? (int)Math.Round(sessionsWithCommunication.Average(s => s.CommunicationScore ?? avgScore))
+                : avgScore;
 
-            var technicalScore = Math.Min(100, avgScore + random.Next(-5, 10));
-            var communicationScore = Math.Min(100, avgScore + random.Next(-10, 5));
-            var confidenceScore = Math.Min(100, avgScore + random.Next(-5, 5));
+            var confidenceScore = sessionsWithConfidence.Any()
+                ? (int)Math.Round(sessionsWithConfidence.Average(s => s.ConfidenceScore ?? avgScore))
+                : avgScore;
 
             return new GetUserStatsResponse
             {
                 TotalInterviews = userSessions.Count,
-                TechnicalScore = technicalScore,
+                TechnicalScore = avgScore,
                 CommunicationScore = communicationScore,
                 ConfidenceScore = confidenceScore
             };
