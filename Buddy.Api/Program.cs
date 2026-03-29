@@ -5,6 +5,7 @@ using Buddy.Application.Features.Auth.Register;
 using Buddy.Application.Services;
 using Buddy.Infrastructure.Services;
 using Buddy.Infrastructure.Services.ElevenLabs;
+using Buddy.Infrastructure.Services.FreeTts;
 using Buddy.Infrastructure.Services.Email;
 using Buddy.Infrastructure.Services.Gemini;
 using Buddy.Persistence;
