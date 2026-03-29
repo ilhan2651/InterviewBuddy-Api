@@ -9,5 +9,8 @@ namespace Buddy.Application.Common.Interfaces
         Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default);
         Task<User?> GetByPhoneNumberAsync(string phoneNumber, CancellationToken cancellationToken = default);
         Task<User?> GetWithInterviewsAsync(int id, CancellationToken cancellationToken = default);
+        Task<User?> GetByEmailVerificationTokenAsync(string token, CancellationToken cancellationToken = default);
+
+
     }
 }

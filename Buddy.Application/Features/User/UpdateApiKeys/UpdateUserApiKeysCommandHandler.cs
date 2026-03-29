@@ -14,12 +14,18 @@ namespace Buddy.Application.Features.User.UpdateApiKeys
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
         private readonly IEncryptionService _encryptionService;
+        private readonly IApiKeyValidationService _apiKeyValidationService;
 
-        public UpdateUserApiKeysCommandHandler(IUnitOfWork unitOfWork, ICurrentUserService currentUserService, IEncryptionService encryptionService)
+        public UpdateUserApiKeysCommandHandler(
+            IUnitOfWork unitOfWork,
+            ICurrentUserService currentUserService,
+            IEncryptionService encryptionService,
+            IApiKeyValidationService apiKeyValidationService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _encryptionService = encryptionService;
+            _apiKeyValidationService = apiKeyValidationService;
         }
 
         public async Task<bool> Handle(UpdateUserApiKeysCommand request, CancellationToken cancellationToken)
@@ -46,11 +52,22 @@ namespace Buddy.Application.Features.User.UpdateApiKeys
                 await _unitOfWork.UserApiKeys.AddAsync(user.ApiKeys);
             }
 
+            var (isSimliKeyValid, simliError) = await _apiKeyValidationService.ValidateSimliKeyAsync(request.SimliApiKey, cancellationToken);
+            if (!isSimliKeyValid)
+            {
+                throw new ArgumentException(simliError ?? "Simli API anahtarı doğrulanamadı.");
+            }
+
+            var (isElevenLabsKeyValid, elevenLabsError) = await _apiKeyValidationService.ValidateElevenLabsKeyAsync(request.ElevenLabsApiKey, cancellationToken);
+            if (!isElevenLabsKeyValid)
+            {
+                throw new ArgumentException(elevenLabsError ?? "ElevenLabs API anahtarı doğrulanamadı.");
+            }
+
             // Encrypt and save keys
             user.ApiKeys.SimliApiKey = _encryptionService.Encrypt(request.SimliApiKey);
             user.ApiKeys.ElevenLabsApiKey = _encryptionService.Encrypt(request.ElevenLabsApiKey);
 
-            _unitOfWork.UserApiKeys.Update(user.ApiKeys);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return true;

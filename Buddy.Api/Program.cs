@@ -1,12 +1,11 @@
-using System.Collections.Generic;
-using System.Text;
-using System.Text.Json.Serialization;
 using Buddy.Api.Middleware;
+using Buddy.Application.Common.Behaviors;
 using Buddy.Application.Common.Interfaces;
 using Buddy.Application.Features.Auth.Register;
 using Buddy.Application.Services;
 using Buddy.Infrastructure.Services;
 using Buddy.Infrastructure.Services.ElevenLabs;
+using Buddy.Infrastructure.Services.Email;
 using Buddy.Infrastructure.Services.Gemini;
 using Buddy.Persistence;
 using Buddy.Persistence.Context;
@@ -16,6 +15,9 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using System.Collections.Generic;
+using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -29,15 +31,18 @@ builder.Services.AddPersistenceServices();
 object value = builder.Services.AddMediatR(cfg =>
 {
     cfg.RegisterServicesFromAssembly(typeof(RegisterCommand).Assembly);
+    cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
 });
 // 3. Dependency Injection
 builder.Services.AddScoped<IChatLLMService, GeminiChatService>();
 builder.Services.AddScoped<IInterviewLLMService, GeminiInterviewService>();
 builder.Services.AddScoped<IQuizLLMService, GeminiQuizService>();
 builder.Services.AddHttpClient<ITextToSpeechService, ElevenLabsService>();
+builder.Services.AddHttpClient<IApiKeyValidationService, ApiKeyValidationService>();
 builder.Services.AddScoped<IJwtService, JwtService>();
 builder.Services.AddSingleton<IEncryptionService, AesEncryptionService>();
 builder.Services.AddValidatorsFromAssembly(typeof(Buddy.Application.Features.Auth.Register.RegisterCommand).Assembly);
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 
 // 3.1 Redis & Caching
 var redisConn = builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379";

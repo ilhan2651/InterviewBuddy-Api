@@ -32,6 +32,15 @@ namespace Buddy.Application.Features.Auth.Login
                 };
             }
 
+            if(!user.IsEmailVerified)
+            {
+                return new LoginResponse
+                {
+                    Success = false,
+                    Message = "Giriş yapmadan önce email adresinizi doğrulamanız gerekiyor."
+                };
+            }
+
             var token = _jwtService.GenerateToken(user);
 
             return new LoginResponse

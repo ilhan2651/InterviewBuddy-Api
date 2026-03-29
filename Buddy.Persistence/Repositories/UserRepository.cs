@@ -22,6 +22,12 @@ namespace Buddy.Persistence.Repositories
                 .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
         }
 
+        public async Task<User?> GetByEmailVerificationTokenAsync(string token, CancellationToken cancellationToken = default)
+        {
+            return await _context.Users
+                .FirstOrDefaultAsync(u=>u.EmailVerificationToken == token, cancellationToken);
+        }
+
         public async Task<User?> GetByPhoneNumberAsync(string phoneNumber, CancellationToken cancellationToken = default)
         {
             return await _context.Users

@@ -14,5 +14,10 @@ namespace Buddy.Domain.Entities
 
         // 1-to-1 relationship for API Keys
         public UserApiKey? ApiKeys { get; set; }
+
+        public bool IsEmailVerified { get; set; } = false;
+        public string? EmailVerificationToken { get; set; }
+        public DateTime? EmailVerificationTokenExpiresAt { get; set; }
+
     }
 }

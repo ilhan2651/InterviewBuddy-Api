@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using System;
@@ -37,6 +38,7 @@ namespace Buddy.Api.Middleware
             
             var statusCode = exception switch
             {
+                ValidationException => (int)HttpStatusCode.BadRequest,
                 ArgumentException => (int)HttpStatusCode.BadRequest,
                 UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
                 _ => (int)HttpStatusCode.InternalServerError
@@ -44,12 +46,23 @@ namespace Buddy.Api.Middleware
 
             context.Response.StatusCode = statusCode;
 
-            var response = new
-            {
-                StatusCode = statusCode,
-                Message = exception.Message,
-                Detail = exception.InnerException?.Message
-            };
+            object response = exception is ValidationException validationException
+                ? new
+                {
+                    StatusCode = statusCode,
+                    Message = "Validation failed.",
+                    Errors = validationException.Errors.Select(x => new
+                    {
+                        x.PropertyName,
+                        x.ErrorMessage
+                    })
+                }
+                : new
+                {
+                    StatusCode = statusCode,
+                    Message = exception.Message,
+                    Detail = exception.InnerException?.Message
+                };
 
             var json = JsonSerializer.Serialize(response);
             return context.Response.WriteAsync(json);

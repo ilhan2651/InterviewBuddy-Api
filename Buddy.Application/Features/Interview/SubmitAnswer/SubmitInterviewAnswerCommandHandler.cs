@@ -259,7 +259,9 @@ namespace Buddy.Application.Features.Interview.SubmitAnswer
                             Order = followUpQuestion.Order,
                             DisplayNumber = $"{currentQuestion.Order}.1",
                             Type = followUpQuestion.Type,
-                            AudioUrl = audioUrl
+                            AudioUrl = audioUrl,
+                            ImageUrl = followUpQuestion.ImageUrl,
+                            CodeSnippet = followUpQuestion.CodeSnippet
                         }
                     };
                 }
@@ -332,7 +334,9 @@ namespace Buddy.Application.Features.Interview.SubmitAnswer
                             Order = nextQuestion.Order,
                             DisplayNumber = baseIndex.ToString(),
                             Type = nextQuestion.Type,
-                            AudioUrl = nextQuestion.AudioUrl
+                            AudioUrl = nextQuestion.AudioUrl,
+                            ImageUrl = nextQuestion.ImageUrl,
+                            CodeSnippet = nextQuestion.CodeSnippet
                         }
                     };
                 }

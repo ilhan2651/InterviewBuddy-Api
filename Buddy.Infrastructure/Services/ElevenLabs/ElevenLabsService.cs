@@ -18,22 +18,30 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
         private readonly HttpClient _httpClient;
         private readonly string _systemApiKey;
         private readonly string _voiceId;
-        private readonly Microsoft.Extensions.Logging.ILogger<ElevenLabsService> _logger;
+        private readonly ILogger<ElevenLabsService> _logger;
         private readonly ICurrentUserService _currentUserService;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IEncryptionService _encryptionService;
+        private readonly IApiKeyValidationService _apiKeyValidationService;
         private readonly string _audioRootPath;
 
-        public ElevenLabsService(HttpClient httpClient, IConfiguration configuration, Microsoft.Extensions.Logging.ILogger<ElevenLabsService> logger,
-            ICurrentUserService currentUserService, IUnitOfWork unitOfWork, IEncryptionService encryptionService)
+        public ElevenLabsService(
+            HttpClient httpClient,
+            IConfiguration configuration,
+            ILogger<ElevenLabsService> logger,
+            ICurrentUserService currentUserService,
+            IUnitOfWork unitOfWork,
+            IEncryptionService encryptionService,
+            IApiKeyValidationService apiKeyValidationService)
         {
             _httpClient = httpClient;
-            _systemApiKey = configuration["ElevenLabs:ApiKey"];
-            _voiceId = configuration["ElevenLabs:VoiceId"] ?? "21m00Tcm4TlvDq8ikWAM"; // Default Rachel Voice
+            _systemApiKey = configuration["ElevenLabs:ApiKey"] ?? string.Empty;
+            _voiceId = configuration["ElevenLabs:VoiceId"] ?? "21m00Tcm4TlvDq8ikWAM";
             _logger = logger;
             _currentUserService = currentUserService;
             _unitOfWork = unitOfWork;
             _encryptionService = encryptionService;
+            _apiKeyValidationService = apiKeyValidationService;
             _audioRootPath = ResolveAudioRootPath(configuration);
         }
 
@@ -41,6 +49,7 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
         {
             var apiKey = _systemApiKey;
             var currentUserIntId = _currentUserService.UserId;
+
             if (currentUserIntId.HasValue)
             {
                 var userId = currentUserIntId.Value;
@@ -48,21 +57,31 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
                     .Include(u => u.InterviewSessions)
                     .Include(u => u.ApiKeys)
                     .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
-                
+
                 if (user != null)
                 {
                     var completedInterviewCount = user.InterviewSessions.Count(s => s.CompletedAt.HasValue);
-                    bool hasFreeQuota = completedInterviewCount == 0;
+                    var hasFreeQuota = completedInterviewCount == 0;
+
                     if (!hasFreeQuota)
                     {
                         if (user.ApiKeys == null || string.IsNullOrEmpty(user.ApiKeys.ElevenLabsApiKey))
                         {
-                            throw new InvalidOperationException("Ücretsiz mülakat hakkınız doldu. Lütfen 'Ayarlar' sayfasından kendi ElevenLabs API Anahtarınızı sisteme girin.");
+                            throw new InvalidOperationException("Ucretsiz mulakat hakkiniz doldu. Lutfen Ayarlar sayfasindan kendi ElevenLabs API anahtarinizi girin.");
                         }
-                        return _encryptionService.Decrypt(user.ApiKeys.ElevenLabsApiKey);
+
+                        var decryptedApiKey = _encryptionService.Decrypt(user.ApiKeys.ElevenLabsApiKey);
+                        var (isValid, errorMessage) = await _apiKeyValidationService.ValidateElevenLabsKeyAsync(decryptedApiKey, cancellationToken);
+                        if (!isValid)
+                        {
+                            throw new ArgumentException(errorMessage ?? "Kaydettiginiz ElevenLabs API anahtari gecersiz gorunuyor. Lutfen API anahtarlarinizi guncelleyin.");
+                        }
+
+                        return decryptedApiKey;
                     }
                 }
             }
+
             return apiKey;
         }
 
@@ -75,10 +94,9 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
             }
 
             var url = $"https://api.elevenlabs.io/v1/text-to-speech/{_voiceId}";
-
             var requestBody = new
             {
-                text = text,
+                text,
                 model_id = "eleven_multilingual_v2",
                 voice_settings = new
                 {
@@ -110,7 +128,6 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
 
         public async Task<string> SaveAudioAsync(Stream audioStream, string fileName, CancellationToken cancellationToken = default)
         {
-            // Save under the configured audio root so dev/prod can use different storage.
             var folderPath = Path.Combine(_audioRootPath, "ai");
             if (!Directory.Exists(folderPath))
             {
