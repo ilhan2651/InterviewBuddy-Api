@@ -24,8 +24,18 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
+# Python 3 + edge-tts kurulumu (Ücretsiz TTS fallback için zorunlu)
+RUN apt-get update && \
+    apt-get install -y python3 python3-pip --no-install-recommends && \
+    pip3 install edge-tts --break-system-packages && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Audio klasörünü oluştur
+RUN mkdir -p /app/wwwroot/audio/ai
+
 # Uygulamanın dinleyeceği port (Docker içinde)
-EXPOSE 8080 
+EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 
 ENTRYPOINT ["dotnet", "Buddy.Api.dll"]
+

@@ -91,7 +91,7 @@ namespace Buddy.Application.Features.Interview.GetCurrentQuestion
                 _logger.LogInformation("AudioUrl missing for Question {QuestionId}. Generating TTS fallback.", currentQuestion.Id);
                 try
                 {
-                    var audioStream = await _ttsService.TextToSpeechAsync(currentQuestion.QuestionText, cancellationToken);
+                    var audioStream = await _ttsService.TextToSpeechAsync(currentQuestion.QuestionText, session.Language, cancellationToken);
                     var fileName = $"q_{session.Id}_{currentQuestion.Id}_{Guid.NewGuid()}.mp3";
                     currentQuestion.AudioUrl = await _ttsService.SaveAudioAsync(audioStream, fileName, cancellationToken);
                     await _unitOfWork.SaveChangesAsync(cancellationToken);

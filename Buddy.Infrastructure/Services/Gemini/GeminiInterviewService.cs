@@ -31,6 +31,8 @@ namespace Buddy.Infrastructure.Services.Gemini
         {
             var model = GoogleAI.GenerativeModel(model: ModelName);
             var prompt = string.Empty;
+            
+            var matrixGuidance = PromptMatrix.GetGuidance(profession, jobTitle, level, difficulty);
 
             var exclusionText = string.Empty;
             if (previouslyAskedQuestions != null && previouslyAskedQuestions.Any())
@@ -51,6 +53,11 @@ Dil: {language}
 Lutfen bu pozisyon icin hedef dilde ({language}) davranissal mulakat sorulari uret.
 Yumusak becerilere, takim calismasina ve catisma cozumune odaklan.{exclusionText}
 
+ZORUNLU ODAK KONULARI VE KILAVUZ:
+{matrixGuidance}
+
+KURAL: Lutfen 'Bize kendinden bahset', 'OOP nedir', 'Zayif yonun nedir' gibi klişe, ezberci genel gecer sorulari ASLA SORMA. Mutlaka verilen ODAK KONULARI uzerinden pratik bir durumu (senaryoyu) yasamasi gerekiyormus gibi olay orguleri yarat.
+
 Ciktiyi kesinlikle su JSON formatinda ver:
 {{
   ""questions"": [
@@ -70,6 +77,11 @@ Dil: {language}
 
 Lutfen bu meslek grubu ve pozisyon icin hedef dilde ({language}) teknik mulakatta sorulmak uzere {difficulty} zorlugunda sorular uret.
 Sorular pozisyona uygun, seviyeye gore ayarlanmis ve secilen dilde olmali. Standart sorulardan ziyade analitik dusunmeyi olc.{exclusionText}
+
+ZORUNLU ODAK KONULARI VE KILAVUZ:
+{matrixGuidance}
+
+KURAL: Adayin ezber yetenegini degil, dogrudan ODAK KONULARI baglaminda bir problemi nasil cozecegini soran kurgusal veya teknik VAKALAR/SENARYOLAR sormalisin. Temel tanim sormaktan kacin.
 Eger soru bir kod parcasini analiz etmeyi gerektiriyorsa, kodu 'codeSnippet' alanina koy, geri kalan anlatimi 'questionText' alanina koy. Kod gerekmiyorsa 'codeSnippet' null olsun.
 
 Format (JSON):
@@ -91,6 +103,11 @@ Dil: {language}
 
 Bu soru, mulakatin ozel analiz sorusudur. Lutfen adaya '{profession}' ve '{jobTitle}' metriklerine uygun bir kod parcasi veya sistem mimarisi / algoritma vakasi ver.
 Senaryo mantikli ve tutarli bir yazilim/sistem gelistirme problemi olmali.
+
+ZORUNLU ODAK KONULARI VE KILAVUZ:
+{matrixGuidance}
+
+KURAL: Siradan sorular kabul edilemez. Tamamen ODAK KONULARI uzerinde muhendislik krizlerini, buyuk refactor intiyaclarini veya derin sistem darboğazlarini barindiran cok ozel bir case olustur.
 ONEMLI: Senaryo metnini 'questionText' alanina yaz. Ilgili kodu veya diyagrami ise kesinlikle 'codeSnippet' alanina yaz.
 Soru metni icerisinde 'Asagidaki kodu inceleyin' gibi ifadeler kullanarak yonlendirme yap.
 

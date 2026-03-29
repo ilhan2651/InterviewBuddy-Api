@@ -85,7 +85,10 @@ namespace Buddy.Application.Features.Interview.StartInterview
             int order = 1;
 
             // 2.1 Intro
-            questions.Add(new InterviewQuestion { InterviewSessionId = session.Id, QuestionText = "Hoş geldiniz! Mülakatımıza başlayabiliriz. Öncelikle kendinizden kısaca bahsedebilir misiniz?", Type = InterviewQuestionType.Intro, Order = order++ });
+            var isEnglish = request.Language != null && (request.Language.Equals("English", StringComparison.OrdinalIgnoreCase) || request.Language.Equals("İngilizce", StringComparison.OrdinalIgnoreCase));
+            var introText = isEnglish ? "Welcome! We can start our interview. First, could you briefly tell me about yourself?" : "Hoş geldiniz! Mülakatımıza başlayabiliriz. Öncelikle kendinizden kısaca bahsedebilir misiniz?";
+            
+            questions.Add(new InterviewQuestion { InterviewSessionId = session.Id, QuestionText = introText, Type = InterviewQuestionType.Intro, Order = order++ });
 
             // 2.2 Behavioral (2 Questions)
             var behavioralResults = await _interviewLLMService.GenerateInterviewQuestionsAsync(
@@ -128,7 +131,7 @@ namespace Buddy.Application.Features.Interview.StartInterview
             var firstQuestion = questions.First();
             try
             {
-                var audioStream = await _ttsService.TextToSpeechAsync(firstQuestion.QuestionText, cancellationToken);
+                var audioStream = await _ttsService.TextToSpeechAsync(firstQuestion.QuestionText, session.Language, cancellationToken);
                 var fileName = $"q_{session.Id}_{firstQuestion.Id}_{Guid.NewGuid()}.mp3";
                 var audioUrl = await _ttsService.SaveAudioAsync(audioStream, fileName, cancellationToken);
                 firstQuestion.AudioUrl = audioUrl;
@@ -158,7 +161,7 @@ namespace Buddy.Application.Features.Interview.StartInterview
                         {
                             try
                             {
-                                var stream = await backgroundTts.TextToSpeechAsync(q.QuestionText);
+                                var stream = await backgroundTts.TextToSpeechAsync(q.QuestionText, session.Language, CancellationToken.None);
                                 var name = $"q_{session.Id}_{q.Id}_{Guid.NewGuid()}.mp3";
                                 var url = await backgroundTts.SaveAudioAsync(stream, name);
 

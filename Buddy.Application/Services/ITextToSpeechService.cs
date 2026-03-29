@@ -6,7 +6,7 @@ namespace Buddy.Application.Services
 {
     public interface ITextToSpeechService
     {
-        Task<Stream> TextToSpeechAsync(string text, CancellationToken cancellationToken = default);
+        Task<Stream> TextToSpeechAsync(string text, string language = "Turkish", CancellationToken cancellationToken = default);
         Task<string> SaveAudioAsync(Stream audioStream, string fileName, CancellationToken cancellationToken = default);
         Task<string> SpeechToTextAsync(Stream audioStream, CancellationToken cancellationToken = default);
     }

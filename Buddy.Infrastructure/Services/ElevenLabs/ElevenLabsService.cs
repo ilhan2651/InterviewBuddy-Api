@@ -10,6 +10,9 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Net.WebSockets;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Buddy.Infrastructure.Services.ElevenLabs
 {
@@ -67,14 +70,14 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
                     {
                         if (user.ApiKeys == null || string.IsNullOrEmpty(user.ApiKeys.ElevenLabsApiKey))
                         {
-                            throw new InvalidOperationException("Ucretsiz mulakat hakkiniz doldu. Lutfen Ayarlar sayfasindan kendi ElevenLabs API anahtarinizi girin.");
+                            throw new InvalidOperationException("ElevenLabs kredisi bitti veya anahtar yok.");
                         }
 
                         var decryptedApiKey = _encryptionService.Decrypt(user.ApiKeys.ElevenLabsApiKey);
-                        var (isValid, errorMessage) = await _apiKeyValidationService.ValidateElevenLabsKeyAsync(decryptedApiKey, cancellationToken);
+                        var (isValid, _) = await _apiKeyValidationService.ValidateElevenLabsKeyAsync(decryptedApiKey, cancellationToken);
                         if (!isValid)
                         {
-                            throw new ArgumentException(errorMessage ?? "Kaydettiginiz ElevenLabs API anahtari gecersiz gorunuyor. Lutfen API anahtarlarinizi guncelleyin.");
+                            throw new ArgumentException("ElevenLabs API anahtarı geçersiz.");
                         }
 
                         return decryptedApiKey;
@@ -85,45 +88,92 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
             return apiKey;
         }
 
-        public async Task<Stream> TextToSpeechAsync(string text, CancellationToken cancellationToken = default)
+        public async Task<Stream> TextToSpeechAsync(string text, string language = "Turkish", CancellationToken cancellationToken = default)
         {
-            var activeApiKey = await GetActiveApiKeyAsync(cancellationToken);
-            if (string.IsNullOrEmpty(activeApiKey))
+            try
             {
-                throw new InvalidOperationException("ElevenLabs API Key is missing.");
-            }
-
-            var url = $"https://api.elevenlabs.io/v1/text-to-speech/{_voiceId}";
-            var requestBody = new
-            {
-                text,
-                model_id = "eleven_multilingual_v2",
-                voice_settings = new
+                var activeApiKey = await GetActiveApiKeyAsync(cancellationToken);
+                if (string.IsNullOrEmpty(activeApiKey))
                 {
-                    stability = 0.5,
-                    similarity_boost = 0.5
+                    throw new InvalidOperationException("ElevenLabs API Key is missing.");
                 }
+
+                var url = $"https://api.elevenlabs.io/v1/text-to-speech/{_voiceId}";
+                var requestBody = new
+                {
+                    text,
+                    model_id = "eleven_multilingual_v2",
+                    voice_settings = new
+                    {
+                        stability = 0.5,
+                        similarity_boost = 0.5
+                    }
+                };
+
+                var json = JsonSerializer.Serialize(requestBody);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Headers.Add("xi-api-key", activeApiKey);
+                request.Content = content;
+
+                _logger.LogInformation("Sending TTS request to ElevenLabs API for VoiceId: {VoiceId}", _voiceId);
+                var response = await _httpClient.SendAsync(request, cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception("ElevenLabs API failed with status " + response.StatusCode);
+                }
+
+                _logger.LogInformation("ElevenLabs TTS request successful.");
+                return await response.Content.ReadAsStreamAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "ElevenLabs TTS failed or quota expired. Falling back to Free Edge TTS.");
+                return await TextToSpeechEdgeAsync(text, language, cancellationToken);
+            }
+        }
+
+        private async Task<Stream> TextToSpeechEdgeAsync(string text, string language, CancellationToken cancellationToken)
+        {
+            var isEnglish = language != null && (language.Equals("English", StringComparison.OrdinalIgnoreCase) || language.Equals("İngilizce", StringComparison.OrdinalIgnoreCase));
+            var voiceName = isEnglish ? "en-US-AriaNeural" : "tr-TR-EmelNeural";
+            
+            var tempFile = Path.GetTempFileName() + ".mp3";
+            var escapedText = text.Replace("\"", "\\\"");
+
+            var processStartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "python",
+                Arguments = $"-m edge_tts --text \"{escapedText}\" --voice \"{voiceName}\" --write-media \"{tempFile}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
             };
 
-            var json = JsonSerializer.Serialize(requestBody);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
+            var process = System.Diagnostics.Process.Start(processStartInfo);
+            if (process == null) throw new Exception("Failed to start python edge_tts process.");
 
-            var request = new HttpRequestMessage(HttpMethod.Post, url);
-            request.Headers.Add("xi-api-key", activeApiKey);
-            request.Content = content;
+            await process.WaitForExitAsync(cancellationToken);
 
-            _logger.LogInformation("Sending TTS request to ElevenLabs API for VoiceId: {VoiceId}", _voiceId);
-            var response = await _httpClient.SendAsync(request, cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
+            if (process.ExitCode != 0)
             {
-                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError("ElevenLabs TTS API Error. Status: {StatusCode}, Content: {ErrorContent}", response.StatusCode, errorContent);
-                throw new Exception($"ElevenLabs API Error: {response.StatusCode} - {errorContent}");
+                var error = await process.StandardError.ReadToEndAsync(cancellationToken);
+                throw new Exception($"edge-tts failed with exit code {process.ExitCode}: {error}");
             }
 
-            _logger.LogInformation("TTS request successful, returning audio stream.");
-            return await response.Content.ReadAsStreamAsync(cancellationToken);
+            var memoryStream = new MemoryStream();
+            using (var fs = new FileStream(tempFile, FileMode.Open, FileAccess.Read))
+            {
+                await fs.CopyToAsync(memoryStream, cancellationToken);
+            }
+            
+            try { File.Delete(tempFile); } catch { /* ignore */ }
+
+            memoryStream.Position = 0;
+            return memoryStream;
         }
 
         public async Task<string> SaveAudioAsync(Stream audioStream, string fileName, CancellationToken cancellationToken = default)
@@ -132,69 +182,60 @@ namespace Buddy.Infrastructure.Services.ElevenLabs
             if (!Directory.Exists(folderPath))
             {
                 Directory.CreateDirectory(folderPath);
-                _logger.LogInformation("Created audio output folder at {FolderPath}", folderPath);
             }
 
             var filePath = Path.Combine(folderPath, fileName);
-            long writtenBytes;
             using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write))
             {
                 await audioStream.CopyToAsync(fileStream, cancellationToken);
                 await fileStream.FlushAsync(cancellationToken);
-                writtenBytes = fileStream.Length;
             }
 
-            var relativePath = Path.Combine("audio", "ai", fileName).Replace("\\", "/");
-            _logger.LogInformation("Saved TTS audio file. RelativePath: {RelativePath}, FilePath: {FilePath}, Bytes: {WrittenBytes}, Exists: {Exists}", relativePath, filePath, writtenBytes, File.Exists(filePath));
-            return relativePath;
+            return Path.Combine("audio", "ai", fileName).Replace("\\", "/");
+        }
+
+        public async Task<string> SpeechToTextAsync(Stream audioStream, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var activeApiKey = await GetActiveApiKeyAsync(cancellationToken);
+                if (string.IsNullOrEmpty(activeApiKey))
+                {
+                    throw new InvalidOperationException("ElevenLabs API Key is missing.");
+                }
+
+                var url = "https://api.elevenlabs.io/v1/speech-to-text";
+                using var content = new MultipartFormDataContent();
+                content.Add(new StreamContent(audioStream), "file", "audio.mp3");
+                content.Add(new StringContent("scribe_v1"), "model_id");
+
+                var request = new HttpRequestMessage(HttpMethod.Post, url);
+                request.Headers.Add("xi-api-key", activeApiKey);
+                request.Content = content;
+
+                var response = await _httpClient.SendAsync(request, cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw new Exception("ElevenLabs STT failed");
+                }
+
+                var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var document = JsonDocument.Parse(responseString);
+                return document.RootElement.GetProperty("text").GetString() ?? string.Empty;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "ElevenLabs STT Failed. Expecting Web Speech API fallback result from client.");
+                return "[SES_HATA]";
+            }
         }
 
         private string ResolveAudioRootPath(IConfiguration configuration)
         {
             var configuredRoot = configuration["AudioStorage:RootPath"];
-            if (!string.IsNullOrWhiteSpace(configuredRoot))
-            {
-                _logger.LogInformation("Using configured audio root path: {AudioRootPath}", configuredRoot);
-                return configuredRoot;
-            }
-
-            var fallbackRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "audio");
-            _logger.LogInformation("Using fallback audio root path: {AudioRootPath}", fallbackRoot);
-            return fallbackRoot;
-        }
-
-        public async Task<string> SpeechToTextAsync(Stream audioStream, CancellationToken cancellationToken = default)
-        {
-            var activeApiKey = await GetActiveApiKeyAsync(cancellationToken);
-            if (string.IsNullOrEmpty(activeApiKey))
-            {
-                throw new InvalidOperationException("ElevenLabs API Key is missing.");
-            }
-
-            var url = "https://api.elevenlabs.io/v1/speech-to-text";
-            using var content = new MultipartFormDataContent();
-            content.Add(new StreamContent(audioStream), "file", "audio.mp3");
-            content.Add(new StringContent("scribe_v1"), "model_id");
-
-            var request = new HttpRequestMessage(HttpMethod.Post, url);
-            request.Headers.Add("xi-api-key", activeApiKey);
-            request.Content = content;
-
-            _logger.LogInformation("Sending STT request to ElevenLabs API.");
-            var response = await _httpClient.SendAsync(request, cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
-                _logger.LogError("ElevenLabs STT API Error. Status: {StatusCode}, Content: {ErrorContent}", response.StatusCode, errorContent);
-                throw new Exception($"ElevenLabs STT API Error: {response.StatusCode} - {errorContent}");
-            }
-
-            var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
-            using var document = JsonDocument.Parse(responseString);
-            var extractedText = document.RootElement.GetProperty("text").GetString() ?? string.Empty;
-            _logger.LogInformation("STT request successful, extracted text length: {TextLength}", extractedText.Length);
-            return extractedText;
+            if (!string.IsNullOrWhiteSpace(configuredRoot)) return configuredRoot;
+            return Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "audio");
         }
     }
 }

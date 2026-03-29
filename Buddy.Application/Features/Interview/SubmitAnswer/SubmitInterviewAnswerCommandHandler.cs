@@ -225,7 +225,7 @@ namespace Buddy.Application.Features.Interview.SubmitAnswer
                     string audioUrl = string.Empty;
                     try
                     {
-                        var audioStream = await _ttsService.TextToSpeechAsync(followUpText, cancellationToken);
+                        var audioStream = await _ttsService.TextToSpeechAsync(followUpText, session.Language, cancellationToken);
                         var fileName = $"followup_{currentQuestion.Id}_{Guid.NewGuid()}.mp3";
                         audioUrl = await _ttsService.SaveAudioAsync(audioStream, fileName, cancellationToken);
                     }
@@ -304,7 +304,7 @@ namespace Buddy.Application.Features.Interview.SubmitAnswer
                     {
                         try
                         {
-                            var audioStream = await _ttsService.TextToSpeechAsync(nextQuestion.QuestionText);
+                            var audioStream = await _ttsService.TextToSpeechAsync(nextQuestion.QuestionText, session.Language);
                             var fileName = $"q_{session.Id}_{nextQuestion.Id}_{Guid.NewGuid()}.mp3";
                             nextQuestion.AudioUrl = await _ttsService.SaveAudioAsync(audioStream, fileName);
                             await _unitOfWork.SaveChangesAsync(cancellationToken);
